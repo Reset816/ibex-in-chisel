@@ -44,4 +44,66 @@ class ALULogicTest extends FlatSpec with ChiselScalatestTester with Matchers {
       c.io.result_o.expect(4294967295L.U)
     }
   }
+  it should "do ALU_LTU" in {
+    test(new ibex_alu) { c =>
+      c.io.operator_i.poke(alu_op_e.ALU_LTU)
+      c.io.operand_a_i.poke(10.U)
+      c.io.operand_b_i.poke(9.U)
+      c.io.multdiv_sel_i.poke(false.B)
+      c.io.result_o.expect(0.U)
+    }
+    test(new ibex_alu) { c =>
+      c.io.operator_i.poke(alu_op_e.ALU_LTU)
+      c.io.operand_a_i.poke(8.U)
+      c.io.operand_b_i.poke(9.U)
+      c.io.multdiv_sel_i.poke(false.B)
+      c.io.result_o.expect(1.U)
+    }
+    test(new ibex_alu) { c =>
+      c.io.operator_i.poke(alu_op_e.ALU_LTU)
+      c.io.operand_a_i.poke(8.U)
+      c.io.operand_b_i.poke(8.U)
+      c.io.multdiv_sel_i.poke(false.B)
+      c.io.result_o.expect(0.U)
+    }
+  }
+  it should "do ALU_GEU" in {
+    test(new ibex_alu) { c =>
+      c.io.operator_i.poke(alu_op_e.ALU_GEU)
+      c.io.operand_a_i.poke(10.U)
+      c.io.operand_b_i.poke(9.U)
+      c.io.multdiv_sel_i.poke(false.B)
+      c.io.result_o.expect(1.U)
+    }
+    test(new ibex_alu) { c =>
+      c.io.operator_i.poke(alu_op_e.ALU_GEU)
+      c.io.operand_a_i.poke(8.U)
+      c.io.operand_b_i.poke(9.U)
+      c.io.multdiv_sel_i.poke(false.B)
+      c.io.result_o.expect(0.U)
+    }
+    test(new ibex_alu) { c =>
+      c.io.operator_i.poke(alu_op_e.ALU_GEU)
+      c.io.operand_a_i.poke(8.U)
+      c.io.operand_b_i.poke(8.U)
+      c.io.multdiv_sel_i.poke(false.B)
+      c.io.result_o.expect(1.U)
+    }
+  }
+  it should "do ALU_EQ" in {
+    test(new ibex_alu) { c =>
+      c.io.operator_i.poke(alu_op_e.ALU_EQ)
+      c.io.operand_a_i.poke(10.U)
+      c.io.operand_b_i.poke(10.U)
+      c.io.multdiv_sel_i.poke(false.B)
+      c.io.result_o.expect(1.U)
+    }
+    test(new ibex_alu) { c =>
+      c.io.operator_i.poke(alu_op_e.ALU_EQ)
+      c.io.operand_a_i.poke(10.U)
+      c.io.operand_b_i.poke(9.U)
+      c.io.multdiv_sel_i.poke(false.B)
+      c.io.result_o.expect(0.U)
+    }
+  }
 }

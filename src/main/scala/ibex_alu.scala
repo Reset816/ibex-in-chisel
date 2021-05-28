@@ -69,6 +69,9 @@ class ibex_alu(
       is(ALU_GE) {
         adder_op_b_negate := "b1".U(1.W)
       }
+      is(ALU_GEU) {
+        adder_op_b_negate := "b1".U(1.W)
+      }
       is(ALU_LT) {
         adder_op_b_negate := "b1".U(1.W)
       }
@@ -150,10 +153,10 @@ class ibex_alu(
   io.is_equal_result_o := is_equal
 
   // Is greater equal
-  when((io.operand_a_i(31) ^ io.operand_b_i(31)) === false.B) {
+  when((io.operand_a_i(31) ^ io.operand_b_i(31)) === false.B) { // 如果a和b同号
     is_greater_equal := (adder_result(31) === false.B)
   }.otherwise {
-    is_greater_equal := io.operand_a_i(31) ^ (cmp_signed)
+    is_greater_equal := io.operand_a_i(31) ^ cmp_signed
   }
 
 
