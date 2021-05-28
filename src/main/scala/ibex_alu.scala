@@ -1,6 +1,5 @@
-import Chisel.MuxLookup
 import chisel3._
-import chisel3.util.{Cat, is, switch}
+import chisel3.util.{Cat, Fill, is, switch}
 import alu_op_e._
 import rv32b_e._
 
@@ -103,7 +102,7 @@ class ibex_alu(
   adder_in_a := Mux(io.multdiv_sel_i, io.multdiv_operand_a_i, Cat(io.operand_a_i.asUInt, "b1".U(1.W)))
 
   // prepare operand b
-  operand_b_neg := Cat(io.operand_b_i, "b0".U(1.W)) ^ (VecInit.tabulate(33)(_ => "b1".U(1.W))).asUInt
+  operand_b_neg := Cat(io.operand_b_i, "b0".U(1.W)) ^ Fill(33, true.B) // Reference: https://stackoverflow.com/questions/56439589/how-to-duplicate-a-single-bit-to-a-uint-in-chisel-3
   when(true.B === io.multdiv_sel_i) {
     adder_in_b := io.multdiv_operand_b_i
   }.elsewhen(true.B === adder_op_b_negate) {
@@ -113,7 +112,7 @@ class ibex_alu(
   }
 
   // actual adder
-  io.adder_result_ext_o := adder_in_a.asTypeOf(UInt(34.W)) + adder_in_b.asTypeOf(UInt(34.W))
+  io.adder_result_ext_o := adder_in_a + adder_in_b
   adder_result := io.adder_result_ext_o(32, 1).asUInt
   io.adder_result_o := adder_result
 
