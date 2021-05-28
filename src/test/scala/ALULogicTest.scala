@@ -11,7 +11,7 @@ class ALULogicTest extends FlatSpec with ChiselScalatestTester with Matchers {
    */
   private def ToNegativeSInt(x: Int): Int = scala.math.pow(2, 32).toInt - x
 
-  behavior of "ibex_alu"
+  behavior of "Arithmetics"
   it should "do ALU_ADD" in {
     test(new ibex_alu) { c =>
       c.io.operator_i.poke(alu_op_e.ALU_ADD)
@@ -52,6 +52,7 @@ class ALULogicTest extends FlatSpec with ChiselScalatestTester with Matchers {
     }
   }
 
+  behavior of "Shifts"
   it should "do ALU_SRA" in {
     test(new ibex_alu) { c => // 0110 > 1 = 0011
       c.io.operator_i.poke(alu_op_e.ALU_SRA)
@@ -94,6 +95,7 @@ class ALULogicTest extends FlatSpec with ChiselScalatestTester with Matchers {
     }
   }
 
+  behavior of "Comparisons"
   it should "do ALU_LT" in {
     test(new ibex_alu) { c =>
       c.io.operator_i.poke(alu_op_e.ALU_LT)
