@@ -209,6 +209,23 @@ class ibex_alu(
   ///////////
   // Shift //
   ///////////
+  var shift_result: UInt = Wire(UInt(32.W))
+  val shift: UInt = io.operand_b_i(5, 0).asUInt()
+
+  {
+    shift_result := 0.U
+    switch(io.operator_i) {
+      is(ALU_SLL) { // SLL: Shift Left Logical
+        shift_result := io.operand_a_i << shift
+      }
+      is(ALU_SRA) { // SRA: Shift Right Arithmetic
+        shift_result := (io.operand_a_i.asSInt() >> shift).asUInt()
+      }
+      is(ALU_SRL) { // SRL: Shift Right Logical
+        shift_result := io.operand_a_i >> shift
+      }
+    }
+  }
 
 
   ////////////////
@@ -246,16 +263,16 @@ class ibex_alu(
         io.result_o := adder_result
       }
 
-      //      // Shift Operations
-      //      is(ALU_SLL) {
-      //        io.result_o := shift_result
-      //      }
-      //      is(ALU_SRL) {
-      //        io.result_o := shift_result
-      //      }
-      //      is(ALU_SRA) {
-      //        io.result_o := shift_result
-      //      }
+      // Shift Operations
+      is(ALU_SLL) {
+        io.result_o := shift_result
+      }
+      is(ALU_SRL) {
+        io.result_o := shift_result
+      }
+      is(ALU_SRA) {
+        io.result_o := shift_result
+      }
 
       // Comparison Operations
       is(ALU_EQ) {
