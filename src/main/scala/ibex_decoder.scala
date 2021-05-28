@@ -1,5 +1,5 @@
 import chisel3._
-import chisel3.util.{is, switch}
+import chisel3.util.{Cat, is, switch}
 
 class ibex_decoder(
                     val RV32E: Bool = false.B,
@@ -507,42 +507,217 @@ class ibex_decoder(
 
       is(opcode_e.OPCODE_JAL) { // Jump and Link
         // Jumps take two cycles without the BTALU
+        io.alu_op_a_mux_sel_o := op_a_sel_e.OP_A_CURRPC
+        io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_IMM
+        io.alu_operator_o := alu_op_e.ALU_ADD
         when(io.instr_first_cycle_i) {
           // Calculate jump target
+          io.imm_b_mux_sel_o := imm_b_sel_e.IMM_B_J
+        }.otherwise {
+          // Calculate and store PC+4
+          io.imm_b_mux_sel_o := imm_b_sel_e.IMM_B_INCR_PC
+        }
+      }
+
+      is(opcode_e.OPCODE_JALR) {
+        // Jumps take two cycles without the BTALU
+        io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_IMM
+        io.alu_operator_o := alu_op_e.ALU_ADD
+        when(io.instr_first_cycle_i) {
+          // Calculate jump target
+          io.alu_op_a_mux_sel_o := op_a_sel_e.OP_A_REG_A
+          io.imm_b_mux_sel_o := imm_b_sel_e.IMM_B_I
+        }.otherwise {
+          // Calculate and store PC+4
+          io.alu_op_a_mux_sel_o := (op_a_sel_e.OP_A_CURRPC)
+          io.imm_b_mux_sel_o := imm_b_sel_e.IMM_B_INCR_PC
+        }
+
+      }
+
+      is(opcode_e.OPCODE_BRANCH) { // Branch
+        // Check branch condition selection
+        switch(instr_alu(14, 12)) {
+          is("b000".U(3.W)) {
+            io.alu_operator_o := alu_op_e.ALU_EQ
+          }
+          is("b001".U(3.W)) {
+            io.alu_operator_o := alu_op_e.ALU_NE
+          }
+          is("b100".U(3.W)) {
+            io.alu_operator_o := alu_op_e.ALU_LT
+          }
+          is("b101".U(3.W)) {
+            io.alu_operator_o := alu_op_e.ALU_GE
+          }
+          is("b110".U(3.W)) {
+            io.alu_operator_o := alu_op_e.ALU_LTU
+          }
+          is("b111".U(3.W)) {
+            io.alu_operator_o := alu_op_e.ALU_GEU
+          }
+        }
+
+        // Without branch target ALU, a branch is a two-stage operation using the Main ALU in both
+        // stages
+
+        when(io.instr_first_cycle_i) {
+          // First evaluate the branch condition
+          io.alu_op_a_mux_sel_o := op_a_sel_e.OP_A_REG_A
+          io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_REG_B
+        }.otherwise {
+          // Then calculate jump target
           io.alu_op_a_mux_sel_o := op_a_sel_e.OP_A_CURRPC
           io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_IMM
-          io.imm_b_mux_sel_o := imm_b_sel_e.IMM_B_J
+          // Not-taken branch will jump to next instruction (used in secure mode)// Not-taken branch will jump to next instruction (used in secure mode)
+          // 分支预测 不预测默认为0
+          io.imm_b_mux_sel_o := Mux(io.branch_taken_i, imm_b_sel_e.IMM_B_I, imm_b_sel_e.IMM_B_INCR_PC)
           io.alu_operator_o := alu_op_e.ALU_ADD
-        }.otherwise(
-          // Calculate and store PC+4
-          io.alu_op_a_mux_sel_o := op_a_sel_e.OP_A_CURRPC
-            io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_IMM
-        io.imm_b_mux_sel_o := imm_b_sel_e.IMM_B_INCR_PC
-        io.alu_operator_o := alu_op_e.ALU_ADD
-        )
+        }
       }
-      is(opcode_e.OPCODE_JALR) {}
-      is(opcode_e.OPCODE_BRANCH) {}
 
       ////////////////
       // Load/store //
       ////////////////
-      is(opcode_e.OPCODE_STORE) {}
-      is(opcode_e.OPCODE_LOAD) {}
+
+      is(opcode_e.OPCODE_STORE) {
+        io.alu_op_a_mux_sel_o := op_a_sel_e.OP_A_REG_A
+        io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_REG_B
+        io.alu_operator_o := alu_op_e.ALU_ADD
+
+        when(!instr_alu(14)) {
+          // offset from immediate
+          io.imm_b_mux_sel_o := imm_b_sel_e.IMM_B_I
+          io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_REG_B
+        }
+      }
+
+      is(opcode_e.OPCODE_LOAD) {
+        io.alu_op_a_mux_sel_o := op_a_sel_e.OP_A_REG_A
+
+        // offset from immediate
+        io.alu_operator_o := alu_op_e.ALU_ADD
+        io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_REG_B
+        io.imm_b_mux_sel_o = imm_b_sel_e.IMM_B_I
+      }
 
       /////////
       // ALU //
       /////////
-      is(opcode_e.OPCODE_LUI) {}
-      is(opcode_e.OPCODE_AUIPC) {}
-      is(opcode_e.OPCODE_OP_IMM) {}
-      is(opcode_e.OPCODE_OP) {}
+
+      is(opcode_e.OPCODE_LUI) { // Load Upper Immediate
+        io.alu_op_a_mux_sel_o := op_a_sel_e.OP_A_IMM
+        io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_IMM
+        io.imm_a_mux_sel_o := imm_a_sel_e.IMM_A_ZERO
+        io.imm_b_mux_sel_o := imm_b_sel_e.IMM_B_U
+        io.alu_operator_o := alu_op_e.ALU_ADD
+      }
+
+      is(opcode_e.OPCODE_AUIPC) { // Add Upper Immediate to PC
+        io.alu_op_a_mux_sel_o := op_a_sel_e.OP_A_CURRPC
+        io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_IMM
+        io.imm_b_mux_sel_o := imm_b_sel_e.IMM_B_U
+        io.alu_operator_o := alu_op_e.ALU_ADD
+      }
+
+      is(opcode_e.OPCODE_OP_IMM) { // Register-Immediate ALU Operations
+        io.alu_op_a_mux_sel_o := op_a_sel_e.OP_A_REG_A
+        io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_IMM
+        io.imm_b_mux_sel_o := imm_b_sel_e.IMM_B_I
+
+        switch(instr_alu(14, 12)) {
+          switch(instr_alu(14, 12)) {
+            is("b000".U(3.W)) {
+              io.alu_operator_o := alu_op_e.ALU_ADD
+            }
+            is("b010".U(3.W)) {
+              io.alu_operator_o := alu_op_e.ALU_SLT
+            }
+            is("b011".U(3.W)) {
+              io.alu_operator_o := alu_op_e.ALU_SLTU
+            }
+            is("b100".U(3.W)) {
+              io.alu_operator_o := alu_op_e.ALU_XOR
+            }
+            is("b110".U(3.W)) {
+              io.alu_operator_o := alu_op_e.ALU_OR
+            }
+            is("b111".U(3.W)) {
+              io.alu_operator_o := alu_op_e.ALU_AND
+            }
+            is("b001".U(3.W)) {
+              io.alu_operator_o := alu_op_e.ALU_SLL
+            }
+            is("b101".U(3.W)) {
+              when(instr_alu(31, 27) === "b0_0000".U) {
+                io.alu_operator_o := alu_op_e.ALU_SRL
+              }.elsewhen(instr_alu(31, 27) === "b0_1000".U) {
+                io.alu_operator_o := alu_op_e.ALU_SRA
+              }
+            }
+          }
+        }
+      }
+
+      is(opcode_e.OPCODE_OP) { // Register-Register ALU operation
+        io.alu_op_a_mux_sel_o := op_a_sel_e.OP_A_REG_A
+        io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_REG_B
+
+        when(!instr_alu(26)) {
+          switch(Cat(instr_alu(31, 25), instr_alu(14, 12))) {
+            is(Cat("b000_0000".U(7.W), "b000".U(3.W))){ // Add
+              io.alu_operator_o := alu_op_e.ALU_ADD
+            }
+            is(Cat("b010_0000".U(7.W), "b000".U(3.W))){ // Sub
+              io.alu_operator_o := alu_op_e.ALU_SUB
+            }
+            is(Cat("b000_0000".U(7.W), "b010".U(3.W))){ // Set Lower Than
+              io.alu_operator_o := alu_op_e.ALU_SLT
+            }
+            is(Cat("b000_0000".U(7.W), "b011".U(3.W))){ // Set Lower Than Unsigned
+              io.alu_operator_o := alu_op_e.ALU_SLTU
+            }
+            is(Cat("b000_0000".U(7.W), "b100".U(3.W))){ // Xor
+              io.alu_operator_o := alu_op_e.ALU_XOR
+            }
+            is(Cat("b000_0000".U(7.W), "b110".U(3.W))){ // Or
+              io.alu_operator_o := alu_op_e.ALU_OR
+            }
+            is(Cat("b000_0000".U(7.W), "b111".U(3.W))){ // And
+              io.alu_operator_o := alu_op_e.ALU_AND
+            }
+            is(Cat("b000_0000".U(7.W), "b001".U(3.W))){ // Shift Left Logical
+              io.alu_operator_o := alu_op_e.ALU_SLL
+            }
+            is(Cat("b000_0000".U(7.W), "b101".U(3.W))){ // Shift Right Logical
+              io.alu_operator_o := alu_op_e.ALU_SRL
+            }
+            is(Cat("b010_0000".U(7.W), "b101".U(3.W))){ // Shift Right Arithmetic
+              io.alu_operator_o := alu_op_e.ALU_SRA
+            }
+          }
+        }
+      }
       /////////////
       // Special //
       /////////////
-      is(opcode_e.OPCODE_MISC_MEM) {}
-      is(opcode_e.OPCODE_SYSTEM) {}
+//      is(opcode_e.OPCODE_MISC_MEM) {}
+//      is(opcode_e.OPCODE_SYSTEM) {}
     }
+//    // do not enable multdiv in case of illegal instruction exceptions
+//    mult_en_o := if(illegal_insn) "b0".U(1.W) else mult_sel_o
+//    div_en_o := if(illegal_insn) "b0".U(1.W) else div_sel_o
+//
+//    // make sure instructions accessing non-available registers in RV32E cause illegal // instruction exceptions
+//
+//    illegal_insn_o := illegal_insn|illegal_reg_rv32e
+//
+//    // do not propgate regfile write enable if non-available registers are accessed in RV32E
+//    rf_we_o := rf_we& ~illegal_reg_rv32e
+
+    // Not all bits are used
+    //unused_instr_alu := Cat(instr_alu(19,15), instr_alu(11,7))
+
   }
 }
 
