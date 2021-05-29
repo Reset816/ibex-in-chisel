@@ -1,5 +1,5 @@
 import chisel3._
-import chisel3.util.{Cat, is, switch}
+import chisel3.util.{Cat, Fill, MuxLookup, is, switch}
 
 class ibex_decoder(
                     val RV32E: Bool = false.B,
@@ -12,13 +12,13 @@ class ibex_decoder(
     val rst_ni: UInt = Input(UInt(1.W))
 
     // to/from controller
-    val illegal_insn_o: Bool = Output(Bool())
-    val ebrk_insn_o: Bool = Output(Bool())
-    val mret_insn_o: Bool = Output(Bool())
+    //    val illegal_insn_o: Bool = Output(Bool())
+    //    val ebrk_insn_o: Bool = Output(Bool())
+    //    val mret_insn_o: Bool = Output(Bool())
 
-    val dret_insn_o: Bool = Output(Bool())
-    val ecall_insn_o: Bool = Output(Bool())
-    val wfi_insn_o: Bool = Output(Bool())
+    //    val dret_insn_o: Bool = Output(Bool())
+    //    val ecall_insn_o: Bool = Output(Bool())
+    //    val wfi_insn_o: Bool = Output(Bool())
     val jump_set_o: Bool = Output(Bool())
     val branch_taken_i: Bool = Input(Bool())
     val icache_inval_o: Bool = Output(Bool())
@@ -27,23 +27,23 @@ class ibex_decoder(
     val instr_first_cycle_i: Bool = Input(Bool())
     val instr_rdata_i: UInt = Input(UInt(32.W))
     val instr_rdata_alu_i: UInt = Input(UInt(32.W))
-    val illegal_c_insn_i: Bool = Input(Bool())
+    //    val illegal_c_insn_i: Bool = Input(Bool())
 
     // immediates
     val imm_a_mux_sel_o: imm_a_sel_e.Type = Output(imm_a_sel_e())
     var imm_b_mux_sel_o: imm_b_sel_e.Type = Output(imm_b_sel_e())
-    val bt_a_mux_sel_o: op_a_sel_e.Type = Output(op_a_sel_e())
-    val bt_b_mux_sel_o: imm_a_sel_e.Type = Output(imm_a_sel_e())
+    //    val bt_a_mux_sel_o: op_a_sel_e.Type = Output(op_a_sel_e())
+    //    val bt_b_mux_sel_o: imm_a_sel_e.Type = Output(imm_a_sel_e())
     val imm_i_type_o: UInt = Output(UInt(32.W))
     val imm_s_type_o: UInt = Output(UInt(32.W))
     val imm_b_type_o: UInt = Output(UInt(32.W))
     val imm_u_type_o: UInt = Output(UInt(32.W))
     val imm_j_type_o: UInt = Output(UInt(32.W))
-    val zimm_rs1_type_o: UInt = Output(UInt(32.W))
+    //    val zimm_rs1_type_o: UInt = Output(UInt(32.W))
 
     // register file
     val rf_wdata_sel_o: rf_wd_sel_e.Type = Output(rf_wd_sel_e())
-    val rf_we_o: Bool = Output(Bool())
+    //    val rf_we_o: Bool = Output(Bool())
     val rf_raddr_a_o: UInt = Output(UInt(5.W))
     val rf_raddr_b_o: UInt = Output(UInt(5.W))
     val rf_waddr_o: UInt = Output(UInt(5.W))
@@ -63,7 +63,7 @@ class ibex_decoder(
     // LSU
     val data_req_o: Bool = Output(Bool())
     val data_we_o: Bool = Output(Bool())
-    val data_type_o: UInt = Output(UInt(2.W))
+    //    val data_type_o: UInt = Output(UInt(2.W))
     val data_sign_extension_o: Bool = Output(Bool())
 
     //jump/branches
@@ -71,14 +71,14 @@ class ibex_decoder(
     val branch_in_dec_o: Bool = Output(Bool())
 
   })
-  var illeagal_insn: Bool = Wire(Bool())
-  var illeagal_reg_rv32e: Bool = Wire(Bool())
-  var csr_illeagal: Bool = Wire(Bool())
+  //  var illeagal_insn: Bool = Wire(Bool())
+  //  var illeagal_reg_rv32e: Bool = Wire(Bool())
+  //  var csr_illeagal: Bool = Wire(Bool())
   var rf_we: Bool = Wire(Bool())
 
   var instr: UInt = Wire(UInt(32.W))
   var instr_alu = Wire(UInt(32.W))
-  var unused_instr_alu = Wire(UInt(10.W))
+  //  var unused_instr_alu = Wire(UInt(10.W))
 
   // Source/Destination register instruction index
   var instr_rs1: UInt = Wire(UInt(5.W))
@@ -88,26 +88,39 @@ class ibex_decoder(
 
   var use_rs3_d: Bool = Wire(Bool())
   var use_rs3_q: Bool = Wire(Bool())
-  var csr_op: csr_op_e.Type = Wire(csr_op_e())
+  //  var csr_op: csr_op_e.Type = Wire(csr_op_e())
 
   var opcode: opcode_e.Type = Wire(opcode_e())
   var opcode_alu: opcode_e.Type = Wire(opcode_e())
 
+  // To help timing the flops containing the current instruction are replicated to reduce fan-out.
+  // instr_alu is used to determine the ALU control logic and associated operand/imm select signals
+  // as the ALU is often on the more critical timing paths. instr is used for everything else.
   instr := io.instr_rdata_i
   instr_alu := io.instr_rdata_alu_i
+
+  //////////////////////////////////////
+  // Register and immediate selection //
+  //////////////////////////////////////
+
   // immediate extraction and sign extension
-  //****
+  io.imm_i_type_o := Cat(Fill(20, instr(31)), instr(31, 20))
+  io.imm_s_type_o := Cat(Fill(20, instr(31)), instr(31, 25), instr(11, 7))
+  io.imm_b_type_o := Cat(Fill(19, instr(31)), instr(31), instr(7), instr(30, 25), instr(11, 8), 0.U(1.W))
+  io.imm_u_type_o := Cat(instr(31, 12), 0.U(12.W))
+  io.imm_j_type_o := Cat(Fill(12, instr(31)), instr(19, 12), instr(20), instr(30, 21), 0.U(1.W))
+
   // immediate for CSR manipulation (zero extended)
   //****
   //if(RV32B)
-
+  use_rs3_q := use_rs3_d
   // source registers
   instr_rs1 := instr(19, 15).asUInt()
   instr_rs2 := instr(24, 20).asUInt()
   instr_rs3 := instr(31, 27).asUInt()
-  //io.rf_raddr_a_o := if(use_rs3_q &~ io.instr_first_cycle_i) instr_rs3 else instr_rs1
   io.rf_raddr_a_o := Mux(use_rs3_q & ~io.instr_first_cycle_i, instr_rs3, instr_rs1)
   io.rf_raddr_b_o := instr_rs2
+
   // destination register
   instr_rd := instr(11, 7).asUInt()
   io.rf_waddr_o := instr_rd
@@ -134,17 +147,17 @@ class ibex_decoder(
     io.rf_ren_b_o := 0.U(1.W)
 
     io.data_we_o := 0.U(1.W)
-    io.data_type_o := 0.U(2.W)
+    //    io.data_type_o := 0.U(2.W)
     io.data_sign_extension_o := 0.U(1.W)
     io.data_req_o := 0.U(1.W)
 
-    illeagal_insn := 0.U(1.W)
-    io.ebrk_insn_o := 0.U(1.W)
-    io.mret_insn_o := 0.U(1.W)
-    io.dret_insn_o := 0.U(1.W)
-    io.ecall_insn_o := 0.U(1.W)
-    io.wfi_insn_o := 0.U(1.W)
-    opcode := instr(6, 0) //判断指令为哪一大类
+    //    illeagal_insn := 0.U(1.W)
+    //    io.ebrk_insn_o := 0.U(1.W)
+    //    io.mret_insn_o := 0.U(1.W)
+    //    io.dret_insn_o := 0.U(1.W)
+    //    io.ecall_insn_o := 0.U(1.W)
+    //    io.wfi_insn_o := 0.U(1.W)
+    opcode := opcode_e(instr(6, 0)) //判断指令为哪一大类
     switch(opcode) {
       ///////////
       // Jumps //
@@ -224,9 +237,9 @@ class ibex_decoder(
         io.data_req_o := 1.U(1.W) // 是否需要访问数据
         io.data_we_o := 1.U(1.W) // 是否可以写回数据
 
-        when(instr(14)) {
-          illeagal_insn := 1.U(1.W)
-        }
+        //        when(instr(14)) {
+        //          illeagal_insn := 1.U(1.W)
+        //        }
 
         //        // 判断是否为半字长
         //        {
@@ -248,7 +261,7 @@ class ibex_decoder(
       is(opcode_e.OPCODE_LOAD) {
         io.rf_ren_a_o := 1.U(1.W)
         io.data_req_o := 1.U(1.W)
-        io.data_type_o := "b00".U(2.W)
+        //        io.data_type_o := "b00".U(2.W)
 
         // sign/zero extension
         io.data_sign_extension_o := ~instr(14) // 判断是否进行store/load操作
@@ -492,9 +505,9 @@ class ibex_decoder(
     //    io.bt_a_mux_sel_o     :=  op_a_sel_e.OP_A_REG_A;
     //    io.bt_b_mux_sel_o     :=  imm_b_sel_e.IMM_B_I;
 
-    opcode_alu := instr_alu(6, 0)
+    opcode_alu := opcode_e(instr(6, 0))
 
-    //    use_rs3_d := 0.U(1.W)
+    use_rs3_d := 0.U(1.W)
     io.alu_multicycle_o := 0.U(1.W)
     //    mult_sel_o := 0.U(1.W)
     //    div_sel_o := 0.U(1.W)
@@ -598,7 +611,7 @@ class ibex_decoder(
         // offset from immediate
         io.alu_operator_o := alu_op_e.ALU_ADD
         io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_REG_B
-        io.imm_b_mux_sel_o = imm_b_sel_e.IMM_B_I
+        io.imm_b_mux_sel_o := imm_b_sel_e.IMM_B_I
       }
 
       /////////
@@ -626,34 +639,32 @@ class ibex_decoder(
         io.imm_b_mux_sel_o := imm_b_sel_e.IMM_B_I
 
         switch(instr_alu(14, 12)) {
-          switch(instr_alu(14, 12)) {
-            is("b000".U(3.W)) {
-              io.alu_operator_o := alu_op_e.ALU_ADD
-            }
-            is("b010".U(3.W)) {
-              io.alu_operator_o := alu_op_e.ALU_SLT
-            }
-            is("b011".U(3.W)) {
-              io.alu_operator_o := alu_op_e.ALU_SLTU
-            }
-            is("b100".U(3.W)) {
-              io.alu_operator_o := alu_op_e.ALU_XOR
-            }
-            is("b110".U(3.W)) {
-              io.alu_operator_o := alu_op_e.ALU_OR
-            }
-            is("b111".U(3.W)) {
-              io.alu_operator_o := alu_op_e.ALU_AND
-            }
-            is("b001".U(3.W)) {
-              io.alu_operator_o := alu_op_e.ALU_SLL
-            }
-            is("b101".U(3.W)) {
-              when(instr_alu(31, 27) === "b0_0000".U) {
-                io.alu_operator_o := alu_op_e.ALU_SRL
-              }.elsewhen(instr_alu(31, 27) === "b0_1000".U) {
-                io.alu_operator_o := alu_op_e.ALU_SRA
-              }
+          is("b000".U(3.W)) {
+            io.alu_operator_o := alu_op_e.ALU_ADD
+          }
+          is("b010".U(3.W)) {
+            io.alu_operator_o := alu_op_e.ALU_SLT
+          }
+          is("b011".U(3.W)) {
+            io.alu_operator_o := alu_op_e.ALU_SLTU
+          }
+          is("b100".U(3.W)) {
+            io.alu_operator_o := alu_op_e.ALU_XOR
+          }
+          is("b110".U(3.W)) {
+            io.alu_operator_o := alu_op_e.ALU_OR
+          }
+          is("b111".U(3.W)) {
+            io.alu_operator_o := alu_op_e.ALU_AND
+          }
+          is("b001".U(3.W)) {
+            io.alu_operator_o := alu_op_e.ALU_SLL
+          }
+          is("b101".U(3.W)) {
+            when(instr_alu(31, 27) === "b0_0000".U) {
+              io.alu_operator_o := alu_op_e.ALU_SRL
+            }.elsewhen(instr_alu(31, 27) === "b0_1000".U) {
+              io.alu_operator_o := alu_op_e.ALU_SRA
             }
           }
         }
@@ -664,56 +675,35 @@ class ibex_decoder(
         io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_REG_B
 
         when(!instr_alu(26)) {
-          switch(Cat(instr_alu(31, 25), instr_alu(14, 12))) {
-            is(Cat("b000_0000".U(7.W), "b000".U(3.W))){ // Add
-              io.alu_operator_o := alu_op_e.ALU_ADD
-            }
-            is(Cat("b010_0000".U(7.W), "b000".U(3.W))){ // Sub
-              io.alu_operator_o := alu_op_e.ALU_SUB
-            }
-            is(Cat("b000_0000".U(7.W), "b010".U(3.W))){ // Set Lower Than
-              io.alu_operator_o := alu_op_e.ALU_SLT
-            }
-            is(Cat("b000_0000".U(7.W), "b011".U(3.W))){ // Set Lower Than Unsigned
-              io.alu_operator_o := alu_op_e.ALU_SLTU
-            }
-            is(Cat("b000_0000".U(7.W), "b100".U(3.W))){ // Xor
-              io.alu_operator_o := alu_op_e.ALU_XOR
-            }
-            is(Cat("b000_0000".U(7.W), "b110".U(3.W))){ // Or
-              io.alu_operator_o := alu_op_e.ALU_OR
-            }
-            is(Cat("b000_0000".U(7.W), "b111".U(3.W))){ // And
-              io.alu_operator_o := alu_op_e.ALU_AND
-            }
-            is(Cat("b000_0000".U(7.W), "b001".U(3.W))){ // Shift Left Logical
-              io.alu_operator_o := alu_op_e.ALU_SLL
-            }
-            is(Cat("b000_0000".U(7.W), "b101".U(3.W))){ // Shift Right Logical
-              io.alu_operator_o := alu_op_e.ALU_SRL
-            }
-            is(Cat("b010_0000".U(7.W), "b101".U(3.W))){ // Shift Right Arithmetic
-              io.alu_operator_o := alu_op_e.ALU_SRA
-            }
-          }
+          io.alu_operator_o := alu_op_e(MuxLookup(Cat(instr_alu(31, 25), instr_alu(14, 12)), 0.U, Array(
+            Cat("b000_0000".U(7.W), "b000".U(3.W)) -> alu_op_e.ALU_ADD.asUInt(),
+            Cat("b010_0000".U(7.W), "b000".U(3.W)) -> alu_op_e.ALU_SUB.asUInt(),
+            Cat("b000_0000".U(7.W), "b010".U(3.W)) -> alu_op_e.ALU_SLT.asUInt(),
+            Cat("b000_0000".U(7.W), "b011".U(3.W)) -> alu_op_e.ALU_SLTU.asUInt(),
+            Cat("b000_0000".U(7.W), "b100".U(3.W)) -> alu_op_e.ALU_XOR.asUInt(),
+            Cat("b000_0000".U(7.W), "b110".U(3.W)) -> alu_op_e.ALU_OR.asUInt(),
+            Cat("b000_0000".U(7.W), "b111".U(3.W)) -> alu_op_e.ALU_AND.asUInt(),
+            Cat("b000_0000".U(7.W), "b001".U(3.W)) -> alu_op_e.ALU_SLL.asUInt(), // Shift Left Logical
+            Cat("b000_0000".U(7.W), "b101".U(3.W)) -> alu_op_e.ALU_SRL.asUInt(), // Shift Right Logical
+            Cat("b010_0000".U(7.W), "b101".U(3.W)) -> alu_op_e.ALU_SRA.asUInt()))) // Shift Right Arithmetic
         }
       }
       /////////////
       // Special //
       /////////////
-//      is(opcode_e.OPCODE_MISC_MEM) {}
-//      is(opcode_e.OPCODE_SYSTEM) {}
+      //      is(opcode_e.OPCODE_MISC_MEM) {}
+      //      is(opcode_e.OPCODE_SYSTEM) {}
     }
-//    // do not enable multdiv in case of illegal instruction exceptions
-//    mult_en_o := if(illegal_insn) "b0".U(1.W) else mult_sel_o
-//    div_en_o := if(illegal_insn) "b0".U(1.W) else div_sel_o
-//
-//    // make sure instructions accessing non-available registers in RV32E cause illegal // instruction exceptions
-//
-//    illegal_insn_o := illegal_insn|illegal_reg_rv32e
-//
-//    // do not propgate regfile write enable if non-available registers are accessed in RV32E
-//    rf_we_o := rf_we& ~illegal_reg_rv32e
+    //    // do not enable multdiv in case of illegal instruction exceptions
+    //    mult_en_o := if(illegal_insn) "b0".U(1.W) else mult_sel_o
+    //    div_en_o := if(illegal_insn) "b0".U(1.W) else div_sel_o
+    //
+    //    // make sure instructions accessing non-available registers in RV32E cause illegal // instruction exceptions
+    //
+    //    illegal_insn_o := illegal_insn|illegal_reg_rv32e
+    //
+    //    // do not propgate regfile write enable if non-available registers are accessed in RV32E
+    //    rf_we_o := rf_we& ~illegal_reg_rv32e
 
     // Not all bits are used
     //unused_instr_alu := Cat(instr_alu(19,15), instr_alu(11,7))
