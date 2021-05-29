@@ -8,8 +8,8 @@ class ibex_decoder(
                     val BranchTargetALU: Bool = false.B,
                   ) extends Module {
   val io = IO(new Bundle {
-    val clk_i: UInt = Input(UInt(1.W))
-    val rst_ni: UInt = Input(UInt(1.W))
+    //        val clk_i: UInt = Input(UInt(1.W))
+    //        val rst_ni: UInt = Input(UInt(1.W))
 
     // to/from controller
     //    val illegal_insn_o: Bool = Output(Bool())
@@ -43,7 +43,7 @@ class ibex_decoder(
 
     // register file
     val rf_wdata_sel_o: rf_wd_sel_e.Type = Output(rf_wd_sel_e())
-    //    val rf_we_o: Bool = Output(Bool())
+    val rf_we_o: Bool = Output(Bool())
     val rf_raddr_a_o: UInt = Output(UInt(5.W))
     val rf_raddr_b_o: UInt = Output(UInt(5.W))
     val rf_waddr_o: UInt = Output(UInt(5.W))
@@ -702,8 +702,8 @@ class ibex_decoder(
     //
     //    illegal_insn_o := illegal_insn|illegal_reg_rv32e
     //
-    //    // do not propgate regfile write enable if non-available registers are accessed in RV32E
-    //    rf_we_o := rf_we& ~illegal_reg_rv32e
+    // do not propgate regfile write enable if non-available registers are accessed in RV32E
+    io.rf_we_o := rf_we
 
     // Not all bits are used
     //unused_instr_alu := Cat(instr_alu(19,15), instr_alu(11,7))
