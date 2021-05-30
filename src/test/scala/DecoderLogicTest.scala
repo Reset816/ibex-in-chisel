@@ -85,6 +85,21 @@ class DecoderLogicTest extends FlatSpec with ChiselScalatestTester with Matchers
       ArithmeticInstructions(c, ALU_SRL, "0000000", "101")
     }
   }
+  it should "do ALU_AND" in {
+    test(new ibex_decoder) { c =>
+      ArithmeticInstructions(c, ALU_AND, "0000000", "111")
+    }
+  }
+  it should "do ALU_OR" in {
+    test(new ibex_decoder) { c =>
+      ArithmeticInstructions(c, ALU_OR, "0000000", "110")
+    }
+  }
+  it should "do ALU_XOR" in {
+    test(new ibex_decoder) { c =>
+      ArithmeticInstructions(c, ALU_XOR, "0000000", "100")
+    }
+  }
 
   behavior of "Decode Conditional Moves Instructions"
   it should "do ALU_EQ" in {

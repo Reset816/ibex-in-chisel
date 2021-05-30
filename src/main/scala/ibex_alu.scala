@@ -227,6 +227,25 @@ class ibex_alu(
     }
   }
 
+  ///////////////////
+  // Bitwise Logic //
+  ///////////////////
+  var bwlogic_result: UInt = Wire(UInt(32.W))
+
+  {
+    bwlogic_result := 0.U
+    switch(io.operator_i) {
+      is(ALU_AND) { // AND
+        bwlogic_result := io.operand_a_i & io.operand_b_i
+      }
+      is(ALU_OR) { // OR
+        bwlogic_result := io.operand_a_i | io.operand_b_i
+      }
+      is(ALU_XOR) { // XOR
+        bwlogic_result := io.operand_a_i ^ io.operand_b_i
+      }
+    }
+  }
 
   ////////////////
   // Result mux //
@@ -235,25 +254,25 @@ class ibex_alu(
   {
     io.result_o := 0.U
     switch(io.operator_i) {
-      // Bitwise Logic Operations (negate: RV32B)
-      //      is(ALU_XOR) {
-      //        io.result_o := bwlogic_result
-      //      }
-      //      is(ALU_XNOR) {
-      //        io.result_o := bwlogic_result
-      //      }
-      //      is(ALU_OR) {
-      //        io.result_o := bwlogic_result
-      //      }
-      //      is(ALU_ORN) {
-      //        io.result_o := bwlogic_result
-      //      }
-      //      is(ALU_AND) {
-      //        io.result_o := bwlogic_result
-      //      }
-      //      is(ALU_ANDN) {
-      //        io.result_o := bwlogic_result
-      //      }
+      //       Bitwise Logic Operations (negate: RV32B)
+      is(ALU_XOR) {
+        io.result_o := bwlogic_result
+      }
+      is(ALU_XNOR) {
+        io.result_o := bwlogic_result
+      }
+      is(ALU_OR) {
+        io.result_o := bwlogic_result
+      }
+      is(ALU_ORN) {
+        io.result_o := bwlogic_result
+      }
+      is(ALU_AND) {
+        io.result_o := bwlogic_result
+      }
+      is(ALU_ANDN) {
+        io.result_o := bwlogic_result
+      }
 
       // Adder Operations
       is(ALU_ADD) {

@@ -262,4 +262,33 @@ class ALULogicTest extends FlatSpec with ChiselScalatestTester with Matchers {
       c.io.result_o.expect(1.U)
     }
   }
+
+  behavior of "Bitwise Logic"
+  it should "do ALU_AND" in {
+    test(new ibex_alu) { c =>
+      c.io.operator_i.poke(alu_op_e.ALU_AND)
+      c.io.operand_a_i.poke(12.U)
+      c.io.operand_b_i.poke(10.U)
+      c.io.multdiv_sel_i.poke(false.B)
+      c.io.result_o.expect(8.U)
+    }
+  }
+  it should "do ALU_OR" in {
+    test(new ibex_alu) { c =>
+      c.io.operator_i.poke(alu_op_e.ALU_OR)
+      c.io.operand_a_i.poke(12.U)
+      c.io.operand_b_i.poke(10.U)
+      c.io.multdiv_sel_i.poke(false.B)
+      c.io.result_o.expect(14.U)
+    }
+  }
+  it should "do ALU_XOR" in {
+    test(new ibex_alu) { c =>
+      c.io.operator_i.poke(alu_op_e.ALU_XOR)
+      c.io.operand_a_i.poke(12.U)
+      c.io.operand_b_i.poke(10.U)
+      c.io.multdiv_sel_i.poke(false.B)
+      c.io.result_o.expect(6.U)
+    }
+  }
 }
