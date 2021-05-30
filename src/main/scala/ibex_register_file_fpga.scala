@@ -8,7 +8,6 @@ class ibex_register_file_fpga(
                              ) extends Module {
   val io = IO(new Bundle {
     //Clock and Reset
-    val clk_i: Clock = Input(Clock())
     val rst_ni: UInt = Input(UInt(1.W))
 
     val test_en_i: UInt = Input(UInt(1.W))
@@ -40,11 +39,9 @@ class ibex_register_file_fpga(
 
   //we select
   we := Mux(io.waddr_a_i === 0.U, 0.U, io.we_a_i)
-  withClock(io.clk_i) {
     when(we === true.B) {
       mem(io.waddr_a_i) := io.wdata_a_i
     }
-  }
 
   // Reset not used in this register file version
   val unused_rst_ni: Bool = Wire(Bool())
