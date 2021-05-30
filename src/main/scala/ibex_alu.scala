@@ -1,5 +1,5 @@
 import chisel3._
-import chisel3.util.{Cat, Fill, is, switch}
+import chisel3.util.{Cat, Fill, MuxLookup, is, switch}
 import alu_op_e._
 import rv32b_e._
 
@@ -51,55 +51,25 @@ class ibex_alu(
   var adder_in_b: UInt = Wire(UInt(33.W))
   var adder_result: UInt = Wire(UInt(32.W))
 
-  {
-    adder_op_b_negate := false.B
-    switch(io.operator_i) {
-      // Adder OPs
-      is(ALU_SUB) {
-        adder_op_b_negate := "b1".U(1.W)
-      }
+  adder_op_b_negate := MuxLookup(io.operator_i.asUInt(), false.B, Array(
+    // Adder OPs
+    ALU_SUB.asUInt() -> true.B,
 
-      // Comparator OPs
-      is(ALU_EQ) {
-        adder_op_b_negate := "b1".U(1.W)
-      }
-      is(ALU_NE) {
-        adder_op_b_negate := "b1".U(1.W)
-      }
-      is(ALU_GE) {
-        adder_op_b_negate := "b1".U(1.W)
-      }
-      is(ALU_GEU) {
-        adder_op_b_negate := "b1".U(1.W)
-      }
-      is(ALU_LT) {
-        adder_op_b_negate := "b1".U(1.W)
-      }
-      is(ALU_LTU) {
-        adder_op_b_negate := "b1".U(1.W)
-      }
-      is(ALU_SLT) {
-        adder_op_b_negate := "b1".U(1.W)
-      }
-      is(ALU_SLTU) {
-        adder_op_b_negate := "b1".U(1.W)
-      }
+    ALU_EQ.asUInt() -> true.B,
+    ALU_NE.asUInt() -> true.B,
+    ALU_GE.asUInt() -> true.B,
+    ALU_GEU.asUInt() -> true.B,
+    ALU_LT.asUInt() -> true.B,
+    ALU_LTU.asUInt() -> true.B,
+    ALU_SLT.asUInt() -> true.B,
+    ALU_SLTU.asUInt() -> true.B,
 
-      // Comparator OPs
-      is(ALU_MIN) {
-        adder_op_b_negate := "b1".U(1.W)
-      }
-      is(ALU_MINU) {
-        adder_op_b_negate := "b1".U(1.W)
-      }
-      is(ALU_MAX) {
-        adder_op_b_negate := "b1".U(1.W)
-      }
-      is(ALU_MAXU) {
-        adder_op_b_negate := "b1".U(1.W)
-      }
-    }
-  }
+    // Comparator OPs
+    ALU_MIN.asUInt() -> true.B,
+    ALU_MINU.asUInt() -> true.B,
+    ALU_MAX.asUInt() -> true.B,
+    ALU_MAXU.asUInt() -> true.B
+  ))
 
   // prepare operand a
   adder_in_a := Mux(io.multdiv_sel_i, io.multdiv_operand_a_i, Cat(io.operand_a_i.asUInt, "b1".U(1.W)))
@@ -127,27 +97,14 @@ class ibex_alu(
   var is_greater_equal: Bool = Wire(Bool()) // handles both signed and unsigned forms
   var cmp_signed: UInt = Wire(UInt(1.W))
 
-  {
-    cmp_signed := false.B
-    switch(io.operator_i) {
-      is(ALU_GE) {
-        cmp_signed := "b1".U(1.W)
-      }
-      is(ALU_LT) {
-        cmp_signed := "b1".U(1.W)
-      }
-      is(ALU_SLT) {
-        cmp_signed := "b1".U(1.W)
-      }
-      // RV32B only
-      is(ALU_MIN) {
-        cmp_signed := "b1".U(1.W)
-      }
-      is(ALU_MAX) {
-        cmp_signed := "b1".U(1.W)
-      }
-    }
-  }
+  cmp_signed := MuxLookup(io.operator_i.asUInt(), false.B, Array(
+    ALU_GE.asUInt() -> true.B,
+    ALU_LT.asUInt() -> true.B,
+    ALU_SLT.asUInt() -> true.B,
+    // RV32B only
+    ALU_MIN.asUInt() -> true.B,
+    ALU_MAX.asUInt() -> true.B,
+  ))
 
   is_equal := (adder_result === "b0".U(32.W))
   io.is_equal_result_o := is_equal
@@ -162,47 +119,20 @@ class ibex_alu(
 
   val cmp_result: Bool = Wire(Bool())
 
-  {
-    cmp_result := is_equal
-    switch(io.operator_i) {
-      is(ALU_EQ) {
-        cmp_result := is_equal
-      }
-      is(ALU_NE) {
-        cmp_result := ~is_equal
-      }
-      is(ALU_GE) {
-        cmp_result := is_greater_equal
-      }
-      is(ALU_GEU) {
-        cmp_result := is_greater_equal
-      }
-      is(ALU_MAX) {
-        cmp_result := is_greater_equal
-      }
-      is(ALU_MAXU) {
-        cmp_result := is_greater_equal
-      }
-      is(ALU_LT) {
-        cmp_result := ~is_greater_equal
-      }
-      is(ALU_LTU) {
-        cmp_result := ~is_greater_equal
-      }
-      is(ALU_MIN) {
-        cmp_result := ~is_greater_equal
-      }
-      is(ALU_MINU) {
-        cmp_result := ~is_greater_equal
-      }
-      is(ALU_SLT) {
-        cmp_result := ~is_greater_equal
-      }
-      is(ALU_SLTU) {
-        cmp_result := ~is_greater_equal
-      }
-    }
-  }
+  cmp_result := MuxLookup(io.operator_i.asUInt(), is_equal, Array(
+    ALU_EQ.asUInt() -> is_equal,
+    ALU_NE.asUInt() -> ~is_equal,
+    ALU_GE.asUInt() -> is_greater_equal,
+    ALU_GEU.asUInt() -> is_greater_equal,
+    ALU_MAX.asUInt() -> is_greater_equal,
+    ALU_MAXU.asUInt() -> is_greater_equal,
+    ALU_LT.asUInt() -> ~is_greater_equal,
+    ALU_LTU.asUInt() -> ~is_greater_equal,
+    ALU_MIN.asUInt() -> ~is_greater_equal,
+    ALU_MINU.asUInt() -> ~is_greater_equal,
+    ALU_SLT.asUInt() -> ~is_greater_equal,
+    ALU_SLTU.asUInt() -> ~is_greater_equal,
+  ))
 
   io.comparison_result_o := cmp_result
 
@@ -212,114 +142,55 @@ class ibex_alu(
   var shift_result: UInt = Wire(UInt(32.W))
   val shift: UInt = io.operand_b_i(5, 0).asUInt()
 
-  {
-    shift_result := 0.U
-    switch(io.operator_i) {
-      is(ALU_SLL) { // SLL: Shift Left Logical
-        shift_result := io.operand_a_i << shift
-      }
-      is(ALU_SRA) { // SRA: Shift Right Arithmetic
-        shift_result := (io.operand_a_i.asSInt() >> shift).asUInt()
-      }
-      is(ALU_SRL) { // SRL: Shift Right Logical
-        shift_result := io.operand_a_i >> shift
-      }
-    }
-  }
+
+  shift_result := MuxLookup(io.operator_i.asUInt(), 0.U, Array(
+    ALU_SLL.asUInt() -> (io.operand_a_i << shift), // SLL: Shift Left Logical
+    ALU_SRA.asUInt() -> (io.operand_a_i.asSInt() >> shift).asUInt(), // SRA: Shift Right Arithmetic
+    ALU_SRL.asUInt() -> (io.operand_a_i >> shift) // SRL: Shift Right Logical
+  ))
+
 
   ///////////////////
   // Bitwise Logic //
   ///////////////////
   var bwlogic_result: UInt = Wire(UInt(32.W))
 
-  {
-    bwlogic_result := 0.U
-    switch(io.operator_i) {
-      is(ALU_AND) { // AND
-        bwlogic_result := io.operand_a_i & io.operand_b_i
-      }
-      is(ALU_OR) { // OR
-        bwlogic_result := io.operand_a_i | io.operand_b_i
-      }
-      is(ALU_XOR) { // XOR
-        bwlogic_result := io.operand_a_i ^ io.operand_b_i
-      }
-    }
-  }
+  bwlogic_result := MuxLookup(io.operator_i.asUInt(), 0.U, Array(
+    ALU_AND.asUInt() -> (io.operand_a_i & io.operand_b_i),
+    ALU_OR.asUInt() -> (io.operand_a_i | io.operand_b_i),
+    ALU_XOR.asUInt() -> (io.operand_a_i ^ io.operand_b_i)
+  ))
 
   ////////////////
   // Result mux //
   ////////////////
+  io.result_o := MuxLookup(io.operator_i.asUInt(), 0.U, Array(
+    // Bitwise Logic Operations (negate: RV32B)
+    ALU_XOR.asUInt() -> bwlogic_result,
+    ALU_XNOR.asUInt() -> bwlogic_result,
+    ALU_OR.asUInt() -> bwlogic_result,
+    ALU_ORN.asUInt() -> bwlogic_result,
+    ALU_AND.asUInt() -> bwlogic_result,
+    ALU_ANDN.asUInt() -> bwlogic_result,
 
-  {
-    io.result_o := 0.U
-    switch(io.operator_i) {
-      //       Bitwise Logic Operations (negate: RV32B)
-      is(ALU_XOR) {
-        io.result_o := bwlogic_result
-      }
-      is(ALU_XNOR) {
-        io.result_o := bwlogic_result
-      }
-      is(ALU_OR) {
-        io.result_o := bwlogic_result
-      }
-      is(ALU_ORN) {
-        io.result_o := bwlogic_result
-      }
-      is(ALU_AND) {
-        io.result_o := bwlogic_result
-      }
-      is(ALU_ANDN) {
-        io.result_o := bwlogic_result
-      }
+    // Adder Operations
+    ALU_ADD.asUInt() -> adder_result,
+    ALU_SUB.asUInt() -> adder_result,
 
-      // Adder Operations
-      is(ALU_ADD) {
-        io.result_o := adder_result
-      }
-      is(ALU_SUB) {
-        io.result_o := adder_result
-      }
+    // Shift Operations
+    ALU_SLL.asUInt() -> shift_result,
+    ALU_SRL.asUInt() -> shift_result,
+    ALU_SRA.asUInt() -> shift_result,
 
-      // Shift Operations
-      is(ALU_SLL) {
-        io.result_o := shift_result
-      }
-      is(ALU_SRL) {
-        io.result_o := shift_result
-      }
-      is(ALU_SRA) {
-        io.result_o := shift_result
-      }
-
-      // Comparison Operations
-      is(ALU_EQ) {
-        io.result_o := Cat("h0".U(31.W), cmp_result)
-      }
-      is(ALU_NE) {
-        io.result_o := Cat("h0".U(31.W), cmp_result)
-      }
-      is(ALU_GE) {
-        io.result_o := Cat("h0".U(31.W), cmp_result)
-      }
-      is(ALU_GEU) {
-        io.result_o := Cat("h0".U(31.W), cmp_result)
-      }
-      is(ALU_LT) {
-        io.result_o := Cat("h0".U(31.W), cmp_result)
-      }
-      is(ALU_LTU) {
-        io.result_o := Cat("h0".U(31.W), cmp_result)
-      }
-      is(ALU_SLT) {
-        io.result_o := Cat("h0".U(31.W), cmp_result)
-      }
-      is(ALU_SLTU) {
-        io.result_o := Cat("h0".U(31.W), cmp_result)
-      }
-    }
-  }
-
+    // Comparison Operations
+    ALU_EQ.asUInt() -> Cat("h0".U(31.W), cmp_result),
+    ALU_NE.asUInt() -> Cat("h0".U(31.W), cmp_result),
+    ALU_GE.asUInt() -> Cat("h0".U(31.W), cmp_result),
+    ALU_GEU.asUInt() -> Cat("h0".U(31.W), cmp_result),
+    ALU_LT.asUInt() -> Cat("h0".U(31.W), cmp_result),
+    ALU_LTU.asUInt() -> Cat("h0".U(31.W), cmp_result),
+    ALU_SLT.asUInt() -> Cat("h0".U(31.W), cmp_result),
+    ALU_SLTU.asUInt() -> Cat("h0".U(31.W), cmp_result),
+  ))
 
 }
