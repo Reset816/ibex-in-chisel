@@ -1,5 +1,6 @@
 // TODO: pc + 4
-import chisel3.
+
+import chisel3._
 import chisel3.util.{Cat, Fill, MuxLookup, is, switch}
 
 class ibex_if_stage(
@@ -76,19 +77,15 @@ class ibex_if_stage(
   val tmp2: Bool = Wire(Bool())
   tmp2 := instr_valid_id_q & ~io.instr_valid_clear_i
   instr_valid_id_d := tmp1 | tmp2
-  if_id_pipe_reg_we  := if_instr_valid & io.id_in_ready_i
+  if_id_pipe_reg_we := if_instr_valid & io.id_in_ready_i
   io.instr_valid_id_o := instr_valid_id_q
 
-  //todo
-  //  always_ff @(posedge clk_i or negedge rst_ni) begin
-  //  if (!rst_ni) begin
-  //  instr_valid_id_q <= 1'b0;
-  //  instr_new_id_q   <= 1'b0;
-  //  end else begin
-  //  instr_valid_id_q <= instr_valid_id_d;
-  //  instr_new_id_q   <= instr_new_id_d;
-  //  end
-  //  end
+  val reset_n: AsyncReset = (!reset.asBool).asAsyncReset
+
+  withReset(reset_n) {
+    instr_valid_id_q := RegNext(0.U, init = instr_valid_id_d)
+    instr_new_id_q := RegNext(0.U, init = instr_new_id_d)
+  }
 
   when(if_id_pipe_reg_we) { // Reference: https://stackoverflow.com/questions/62388061/how-to-define-output-reg-in-chisel-properly
     io.instr_rdata_id_o := RegNext(instr_out)

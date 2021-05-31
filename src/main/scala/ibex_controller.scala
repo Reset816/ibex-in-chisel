@@ -5,7 +5,6 @@ import chisel3.util.{is, switch}
 class ibex_controller extends Module {
   val io = IO(new Bundle {
 
-    val rst_ni: Bool = IO(Input(Bool()))
     val ctrl_busy_o: Bool = IO(Output(Bool())) // core is busy processing instrs
 
     // instr from IF-ID pipeline stage
@@ -148,28 +147,12 @@ class ibex_controller extends Module {
   // stall as this causes a combinational loop.
   io.instr_valid_clear_o := !stall
 
-  // update registers
-  // todo
-  //  always_ff @(posedge clk_i or negedge rst_ni) begin : update_regs
-  //  if (!rst_ni) begin
-  //  ctrl_fsm_cs    <= RESET;
-  //  nmi_mode_q     <= 1'b0;
-  //  debug_mode_q   <= 1'b0;
-  //  load_err_q     <= 1'b0;
-  //  store_err_q    <= 1'b0;
-  //  exc_req_q      <= 1'b0;
-  //  illegal_insn_q <= 1'b0;
-  //  end else begin
-  //  ctrl_fsm_cs    <= ctrl_fsm_ns;
-  //  nmi_mode_q     <= nmi_mode_d;
-  //  debug_mode_q   <= debug_mode_d;
-  //  load_err_q     <= load_err_d;
-  //  store_err_q    <= store_err_d;
-  //  exc_req_q      <= exc_req_d;
-  //  illegal_insn_q <= illegal_insn_d;
-  //  end
-  //  end
+  val reset_n: AsyncReset = (!reset.asBool).asAsyncReset
 
+  // update registers
+  ctrl_fsm_cs := withReset(reset_n) {
+    RegNext(0.U, init = ctrl_fsm_e.RESET)
+  }
 
 }
 
