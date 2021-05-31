@@ -6,31 +6,30 @@ import chisel3.util.{Cat, Fill, MuxLookup, is, switch}
 class ibex_if_stage(
                    ) extends Module {
   val io = IO(new Bundle {
-    val rst_ni: Bool = IO(Input(Bool()))
-    val req_i: Bool = IO(Input(Bool())) // instruction request control
+    val req_i: Bool = Input(Bool()) // instruction request control
 
-    val boot_addr_i: UInt = IO(Input(UInt(32.W))) // also used for mtvec
+    val boot_addr_i: UInt = Input(UInt(32.W)) // also used for mtvec
 
     // output of ID stage
-    val instr_valid_id_o: Bool = IO(Output(Bool())) // instr in IF-ID is valid
-    val instr_rdata_id_o: UInt = IO(Output(Reg(UInt(32.W)))) // instr for ID stage
-    val instr_rdata_alu_id_o: UInt = IO(Output(UInt(32.W))) // replicated instr for ID stage
+    val instr_valid_id_o: Bool = Output(Bool()) // instr in IF-ID is valid
+    val instr_rdata_id_o: UInt = Output(UInt(32.W)) // instr for ID stage
+    val instr_rdata_alu_id_o: UInt = Output(UInt(32.W)) // replicated instr for ID stage
 
-    val pc_if_o: UInt = IO(Output(UInt(32.W)))
-    val pc_id_o: UInt = IO(Output(UInt(32.W)))
+    val pc_if_o: UInt = Output(UInt(32.W))
+    val pc_id_o: UInt = Output(UInt(32.W))
 
     // control signals
-    val instr_valid_clear_i: Bool = IO(Input(Bool())) // clear instr valid bit in IF-ID
-    val pc_set_i: Bool = IO(Input(Bool())) // set the PC to a new value
-    val pc_mux_i: pc_sel_e.Type = IO(Input(pc_sel_e())) // selector for PC multiplexer
+    val instr_valid_clear_i: Bool = Input(Bool()) // clear instr valid bit in IF-ID
+    val pc_set_i: Bool = Input(Bool()) // set the PC to a new value
+    val pc_mux_i: pc_sel_e.Type = Input(pc_sel_e()) // selector for PC multiplexer
 
     // jump and branch target
-    val branch_target_ex_i: UInt = IO(Input(UInt(32.W))) // branch/jump target address
+    val branch_target_ex_i: UInt = Input(UInt(32.W)) // branch/jump target address
 
     // pipeline stall
-    val id_in_ready_i: Bool = IO(Input(Bool())) // ID stage is ready for new instr
+    val id_in_ready_i: Bool = Input(Bool()) // ID stage is ready for new instr
     // misc signals
-    val if_busy_o: Bool = IO(Output(Bool()))
+    val if_busy_o: Bool = Output(Bool())
   })
   val instr_valid_id_d: Bool = Wire(Bool())
   val instr_valid_id_q: Bool = Wire(Bool())
@@ -58,10 +57,19 @@ class ibex_if_stage(
   val instr_out: UInt = Wire(UInt(32.W)) // TODO: 从 prefetch buffer 中取
 
   // fetch address selection mux
-  fetch_addr_n := MuxLookup(pc_mux_i.asUInt(), Cat(io.boot_addr_i(31, 8), "h80".U(8.W)), Array(
+  fetch_addr_n := MuxLookup(io.pc_mux_i.asUInt(), Cat(io.boot_addr_i(31, 8), "h80".U(8.W)), Array(
     pc_sel_e.PC_BOOT.asUInt() -> Cat(io.boot_addr_i(31, 8), "h80".U(8.W)),
     pc_sel_e.PC_JUMP.asUInt() -> io.branch_target_ex_i,
   ))
+
+
+//  val instruction_mem = Module(new InstructionMem)
+//  instruction_mem.io.PC :=  fetch_addr_n
+//  instruction_mem.io.req_i :=
+//  instruction_mem.io. :=
+
+  // 实例化
+
 
   // TODO: if_instr_addr 和 prefetch_busy 由 prefetcher 输出
   io.pc_if_o := if_instr_addr
