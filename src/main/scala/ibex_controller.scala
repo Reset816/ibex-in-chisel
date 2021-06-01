@@ -12,7 +12,7 @@ class ibex_controller extends Module {
 
     val id_in_ready_o: Bool = Output(Bool()) // ID stage is ready for new instr
 
-    val controller_run_o: Bool =Output(Bool()) // Controller is in standard instruction
+    val controller_run_o: Bool = Output(Bool()) // Controller is in standard instruction
     // run mode
 
     // to prefetcher
@@ -33,23 +33,18 @@ class ibex_controller extends Module {
     val stall_id_i: Bool = Input(Bool())
   })
 
-  /////////////////////
-  // Core controller //
-  /////////////////////
   object ctrl_fsm_e extends ChiselEnum {
     val
     RESET,
     BOOT_SET,
-    WAIT_SLEEP,
-    SLEEP,
     FIRST_FETCH,
-    DECODE,
-    FLUSH,
-    IRQ_TAKEN,
-    DBG_TAKEN_IF,
-    DBG_TAKEN_ID
+    DECODE
     = Value
   }
+
+  /////////////////////
+  // Core controller //
+  /////////////////////
 
   val ctrl_fsm_cs: ctrl_fsm_e.Type = Wire(ctrl_fsm_e())
   val ctrl_fsm_ns: ctrl_fsm_e.Type = Wire(ctrl_fsm_e())
@@ -74,11 +69,13 @@ class ibex_controller extends Module {
     {
       io.instr_req_o := 0.U(1.W)
       ctrl_fsm_ns := ctrl_fsm_e.RESET
+
       switch(ctrl_fsm_cs) {
+
         is(ctrl_fsm_e.RESET) {
           io.instr_req_o := 0.U(1.W)
           io.pc_mux_o := pc_sel_e.PC_BOOT
-          io.pc_set_o := 0.U(1.W)
+          io.pc_set_o := 1.U(1.W)
           ctrl_fsm_ns := ctrl_fsm_e.BOOT_SET
         }
 
@@ -86,7 +83,7 @@ class ibex_controller extends Module {
           // copy boot address to instr fetch address
           io.instr_req_o := 1.U(1.W)
           io.pc_mux_o := pc_sel_e.PC_BOOT
-          io.pc_set_o := 0.U(1.W)
+          io.pc_set_o := 1.U(1.W)
           ctrl_fsm_ns := ctrl_fsm_e.FIRST_FETCH
         }
 
