@@ -31,16 +31,9 @@ class ibex_controller extends Module {
 
     // stall & flush signals
     val stall_id_i: Bool = Input(Bool())
-  })
 
-  object ctrl_fsm_e extends ChiselEnum {
-    val
-    RESET,
-    BOOT_SET,
-    FIRST_FETCH,
-    DECODE
-    = Value
-  }
+    //    val test : ctrl_fsm_e.Type = Output(ctrl_fsm_e())
+  })
 
   /////////////////////
   // Core controller //
@@ -89,8 +82,11 @@ class ibex_controller extends Module {
 
         is(ctrl_fsm_e.FIRST_FETCH) {
           // Stall because of IF miss
+          io.instr_req_o := 1.U(1.W) // What the fuck, Why it need this line?
           when(io.id_in_ready_o) {
             ctrl_fsm_ns := ctrl_fsm_e.DECODE
+          }.otherwise {
+            ctrl_fsm_ns := ctrl_fsm_e.FIRST_FETCH // What the fuck, Why it need this line?
           }
         }
 
@@ -100,7 +96,7 @@ class ibex_controller extends Module {
           // 1. currently running (multicycle) instructions and exceptions caused by these
           // 2. debug requests
           // 3. interrupt requests
-
+          io.instr_req_o := 1.U(1.W) // What the fuck, Why it need this line?
           io.controller_run_o := 1.U(1.W)
 
           // Set PC mux for branch and jump here to ease timing. Value is only relevant if pc_set_o is
@@ -115,6 +111,7 @@ class ibex_controller extends Module {
       }
     }
   }
+  //  io.test := ctrl_fsm_cs
 
   ///////////////////
   // Stall control //
@@ -143,5 +140,8 @@ class ibex_controller extends Module {
     RegNext(ctrl_fsm_ns, init = ctrl_fsm_e.RESET)
   }
 
+  //  io.test := withReset(reset_n) {
+  //    RegNext(ctrl_fsm_ns, init = ctrl_fsm_e.RESET)
+  //  }
 }
 
