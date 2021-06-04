@@ -1,5 +1,7 @@
 import chisel3._
 import chisel3.util.Cat
+import chisel3.util.experimental.loadMemoryFromFile
+import firrtl.annotations.MemoryLoadFileType
 
 class InstructionMem extends Module {
   val io = IO(new Bundle {
@@ -15,7 +17,8 @@ class InstructionMem extends Module {
 
   })
   //reg
-  val mem: Vec[UInt] = Reg(Vec(128, Bits(8.W)))
+  val mem = Mem(128, UInt(8.W))
+  loadMemoryFromFile(mem, "./src/test/MemoryofInstruction.txt", MemoryLoadFileType.Hex)
 
   io.fetch_addr_o := io.PC
 
