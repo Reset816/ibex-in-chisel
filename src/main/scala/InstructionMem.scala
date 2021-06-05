@@ -13,7 +13,7 @@ class InstructionMem extends Module {
     val fetch_valid_o: UInt = Output(UInt(1.W))
     val fetch_rdata_o: UInt = Output(UInt(32.W))
     val fetch_addr_o: UInt = Output(UInt(32.W))
-    val prefetch_busy_o: UInt = Output(UInt(1.W))
+    val busy_o: UInt = Output(UInt(1.W))
 
   })
   //reg
@@ -26,10 +26,10 @@ class InstructionMem extends Module {
 
   when((io.req_i & io.fetch_ready_i) === true.B) {
     io.fetch_valid_o := 1.U(1.W)
-    io.prefetch_busy_o := 0.U(1.W)
+    io.busy_o := 0.U(1.W)
   }.otherwise {
     io.fetch_valid_o := 0.U(1.W)
-    io.prefetch_busy_o := 1.U(1.W)
+    io.busy_o := 1.U(1.W)
   }
 }
 
