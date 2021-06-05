@@ -583,7 +583,6 @@ class ibex_decoder(
           io.alu_op_a_mux_sel_o := op_a_sel_e.OP_A_CURRPC
           io.alu_op_b_mux_sel_o := op_b_sel_e.OP_B_IMM
           // Not-taken branch will jump to next instruction (used in secure mode)// Not-taken branch will jump to next instruction (used in secure mode)
-          // 分支预测 不预测默认为0
           io.imm_b_mux_sel_o := Mux(io.branch_taken_i, imm_b_sel_e.IMM_B_I, imm_b_sel_e.IMM_B_INCR_PC)
           io.alu_operator_o := alu_op_e.ALU_ADD
         }

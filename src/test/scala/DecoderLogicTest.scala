@@ -8,7 +8,7 @@ import alu_op_e._
 class DecoderLogicTest extends FlatSpec with ChiselScalatestTester with Matchers {
 
   private def ArithmeticInstructions(c: ibex_decoder, operation: alu_op_e.Type, str1: String, str2: String): Unit = {
-    c.io.branch_taken_i.poke(false.B)
+    c.io.branch_taken_i.poke(true.B)
     c.io.instr_first_cycle_i.poke(true.B)
 
     val rs2 = "11111"
@@ -30,7 +30,7 @@ class DecoderLogicTest extends FlatSpec with ChiselScalatestTester with Matchers
   }
 
   private def ConditionalMovesInstructions(c: ibex_decoder, operation: alu_op_e.Type, str2: String): Unit = {
-    c.io.branch_taken_i.poke(false.B)
+    c.io.branch_taken_i.poke(true.B)
     c.io.instr_first_cycle_i.poke(true.B)
 
     val imm1 = "0000000"
