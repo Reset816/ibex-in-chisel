@@ -220,8 +220,8 @@ class ibex_id_stage extends Module {
   branch_set_raw_q := withReset(reset_n) {
     RegNext(branch_set_raw_d, init = false.B)
   }
-  //todo
-  // assign branch_set_raw      = /* (BranchTargetALU && !data_ind_timing_i) ? branch_set_raw_d : */
+
+  branch_set_raw := branch_set_raw_q
 
   branch_jump_set_done_d := (branch_set_raw | jump_set_raw | branch_jump_set_done_q) & ~io.instr_valid_clear_o
 
