@@ -23,9 +23,13 @@ class ibex_id_stage extends Module {
 
     val pc_id_i = Input(UInt(32.W))
 
-    val ex_valid_i = Input(Bool()) // todo: ALU 输出
+    val ex_valid_i = Input(Bool()) // todo: ALU 输出(总是为 1)
 
     val lsu_resp_valid_i = Input(Bool()) // todo: LSU 空闲标志
+    val lsu_req_o = Output(Bool())
+    val lsu_we_o = Output(Bool())
+    val lsu_wdata_o = Output(UInt(32.W))
+
     val alu_operator_ex_o = Output(alu_op_e())
     val alu_operand_a_ex_o = Output(UInt(32.W))
     val alu_operand_b_ex_o = Output(UInt(32.W))
@@ -38,6 +42,8 @@ class ibex_id_stage extends Module {
     val rf_ren_b_o = Output(Bool())
 
     val instr_id_done_o = Output(Bool())
+
+
   })
 
   val branch_in_dec = Wire(Bool())
@@ -110,8 +116,6 @@ class ibex_id_stage extends Module {
 
   // TODO: Data Memory Control
   val lsu_we = Wire(Bool())
-  val lsu_type = Wire(UInt(2.W))
-  val lsu_sign_ext = Wire(Bool())
   val lsu_req = Wire(Bool())
   val lsu_req_dec = Wire(Bool())
   val data_req_allowed = Wire(Bool())
@@ -123,10 +127,11 @@ class ibex_id_stage extends Module {
 
   alu_operand_a := MuxLookup(alu_op_a_mux_sel,io.pc_id_i,Array(
     op_a_sel_e.OP_A_REG_A.asUInt() -> rf_rdata_a_fwd,
-    op_a_sel_e.OP_A_FWD.asUInt() -> io.lsu_addr_last_i,
+    // todo: 不支持异常，不可能进入这种情况
+    // op_a_sel_e.OP_A_FWD.asUInt() -> io.lsu_addr_last_i,
     op_a_sel_e.OP_A_CURRPC.asUInt() -> io.pc_id_i,
     op_a_sel_e.OP_A_IMM.asUInt() -> imm_a,
-  ))
+    ))
 
   imm_b := MuxLookup(imm_b_mux_sel,4.U(32.W),Array(
     imm_b_sel_e.IMM_B_I.asUInt() -> imm_i_type,
@@ -136,91 +141,67 @@ class ibex_id_stage extends Module {
     imm_b_sel_e.IMM_B_J.asUInt() -> imm_j_type,
     imm_b_sel_e.IMM_B_INCR_PC.asUInt() -> 4.U(32.W),
     imm_b_sel_e.IMM_B_INCR_ADDR.asUInt() -> 4.U(32.W),
-  ))
+    ))
 
   alu_operand_b := Mux(alu_op_b_mux_sel === op_b_sel_e.OP_B_IMM, imm_b, rf_rdata_b_fwd)
   io.rf_we_id_o := rf_we_raw & instr_executing
 
   val decoder: ibex_decoder = Module(new ibex_decoder)
-  decoder.io.jump_set_o <> jump_set_dec
-  decoder.io.branch_taken_i <> true.B // branch_taken_i 永远为true
-  // ibex_decoder #(
-  //     .RV32E           ( RV32E           ),
-  //     .RV32M           ( RV32M           ),
-  //     .RV32B           ( RV32B           ),
-  //     .BranchTargetALU ( BranchTargetALU )
-  // ) decoder_i (
-  //     .clk_i                           ( clk_i                ),
-  //     .rst_ni                          ( rst_ni               ),
-  //
-  //     // controller
-  //     .illegal_insn_o                  ( illegal_insn_dec     ),
-  //     .ebrk_insn_o                     ( ebrk_insn            ),
-  //     .mret_insn_o                     ( mret_insn_dec        ),
-  //     .dret_insn_o                     ( dret_insn_dec        ),
-  //     .ecall_insn_o                    ( ecall_insn_dec       ),
-  //     .wfi_insn_o                      ( wfi_insn_dec         ),
-  //     .jump_set_o                      ( jump_set_dec         ),
-  //     .branch_taken_i                  ( branch_taken /* 1 */         ),
-  //     .icache_inval_o                  ( icache_inval_o       ),
-  //
-  //     // from IF-ID pipeline register
-  //     .instr_first_cycle_i             ( instr_first_cycle    ),
-  //     .instr_rdata_i                   ( instr_rdata_i        ),
-  //     .instr_rdata_alu_i               ( instr_rdata_alu_i    ),
-  //     .illegal_c_insn_i                ( illegal_c_insn_i     ),
-  //
-  //     // immediates
-  //     .imm_a_mux_sel_o                 ( imm_a_mux_sel        ),
-  //     .imm_b_mux_sel_o                 ( imm_b_mux_sel_dec    ),
-  //     .bt_a_mux_sel_o                  ( bt_a_mux_sel         ),
-  //     .bt_b_mux_sel_o                  ( bt_b_mux_sel         ),
-  //
-  //     .imm_i_type_o                    ( imm_i_type           ),
-  //     .imm_s_type_o                    ( imm_s_type           ),
-  //     .imm_b_type_o                    ( imm_b_type           ),
-  //     .imm_u_type_o                    ( imm_u_type           ),
-  //     .imm_j_type_o                    ( imm_j_type           ),
-  //     .zimm_rs1_type_o                 ( zimm_rs1_type        ),
-  //
-  //     // register file
-  //     .rf_wdata_sel_o                  ( rf_wdata_sel         ),
-  //     .rf_we_o                         ( rf_we_dec            ),
-  //
-  //     .rf_raddr_a_o                    ( rf_raddr_a_o         ),
-  //     .rf_raddr_b_o                    ( rf_raddr_b_o         ),
-  //     .rf_waddr_o                      ( rf_waddr_id_o        ),
-  //     .rf_ren_a_o                      ( rf_ren_a_dec         ),
-  //     .rf_ren_b_o                      ( rf_ren_b_dec         ),
-  //
-  //     // ALU
-  //     .alu_operator_o                  ( alu_operator         ),
-  //     .alu_op_a_mux_sel_o              ( alu_op_a_mux_sel_dec ),
-  //     .alu_op_b_mux_sel_o              ( alu_op_b_mux_sel_dec ),
-  //     .alu_multicycle_o                ( alu_multicycle_dec   ),
-  //
-  //     // MULT & DIV
-  //     .mult_en_o                       ( mult_en_dec          ),
-  //     .div_en_o                        ( div_en_dec           ),
-  //     .mult_sel_o                      ( mult_sel_ex_o        ),
-  //     .div_sel_o                       ( div_sel_ex_o         ),
-  //     .multdiv_operator_o              ( multdiv_operator     ),
-  //     .multdiv_signed_mode_o           ( multdiv_signed_mode  ),
-  //
-  //     // CSRs
-  //     .csr_access_o                    ( csr_access_o         ),
-  //     .csr_op_o                        ( csr_op_o             ),
-  //
-  //     // LSU
-  //     .data_req_o                      ( lsu_req_dec          ),
-  //     .data_we_o                       ( lsu_we               ),
-  //     .data_type_o                     ( lsu_type             ),
-  //     .data_sign_extension_o           ( lsu_sign_ext         ),
-  //
-  //     // jump/branches
-  //     .jump_in_dec_o                   ( jump_in_dec          ),
-  //     .branch_in_dec_o                 ( branch_in_dec        )
-  // );
+  // todo: clk_i & rst_ni
+  jump_set_dec := decoder.io.jump_set_o
+  decoder.io.branch_taken_i := true.B // branch_taken_i 永远为true
+  decoder.io.instr_first_cycle_i := instr_first_cycle
+  decoder.io.instr_rdata_i := instr_rdata_i
+  decoder.io.instr_rdata_alu_i := instr_rdata_alu_i
+
+  imm_a_mux_sel := decoder.io.imm_a_mux_sel_o
+  imm_b_mux_sel_dec := decoder.io.imm_b_mux_sel_o
+  imm_i_type := decoder.io.imm_i_type_o
+  imm_s_type := decoder.io.imm_s_type_o
+  imm_b_type := decoder.io.imm_b_type_o
+  imm_u_type := decoder.io.imm_u_type_o
+  imm_j_type := decoder.io.imm_j_type_o
+  zimm_rs1_type := decoder.io.zimm_rs1_type_o
+
+  rf_wdata_sel := decoder.io.rf_wdata_sel_o
+  rf_we_dec := decoder.io.rf_we_o
+  rf_raddr_a_o := decoder.io.rf_raddr_a_o
+  rf_raddr_b_o := decoder.io.rf_raddr_b_o
+  rf_waddr_id_o := decoder.io.rf_waddr_o
+  rf_ren_a_dec := decoder.io.rf_ren_a_o
+  rf_ren_b_dec := decoder.io.rf_ren_b_o
+
+  alu_operator := decoder.io.alu_operator_o
+  alu_op_a_mux_sel_dec := decoder.io.alu_op_a_mux_sel_o
+  alu_op_b_mux_sel_dec := decoder.io.alu_op_b_mux_sel_o
+  alu_multicycle_dec := decoder.io.alu_multicycle_o
+
+  lsu_req_dec := decoder.io.data_req_o
+  lsu_we := decoder.io.data_we_o
+  // 本项目 LSU 仅支持 32 比特内存访问
+  // lsu_type := decoder.io.data_type_o
+  lsu_sign_ext := decoder.io.data_sign_extension_o
+
+  jump_in_dec := decoder.io.jump_in_dec_o
+  branch_in_dec := decoder.io.branch_in_dec_o
+
+
+
+  val controller: ibex_controller = Module(new ibex_controller)
+  // todo: clk_i & rst_ni
+  io.ctrl_busy_o <> controller.io.ctrl_busy_o
+  io.instr_valid_i <> controller.io.instr_valid_i
+  io.instr_rdata_i <> controller.io.instr_rdata_i
+  io.pc_id_i <> controller.io.pc_id_i
+  io.instr_valid_clear_o <> controller.io.instr_valid_clear_o
+  io.id_in_ready_o <> controller.io.id_in_ready_o
+  controller_run := controller.io.controller_run_o
+  io.instr_req_o <> controller.io.instr_req_o
+  io.pc_set_o <> controller.io.pc_set_o
+  io.pc_mux_o <> controller.io.pc_mux_o
+  controller.io.branch_set_i := branch_set
+  controller.io.jump_set_i := jump_set
+  controller.io.stall_id_i := stall_id
 
   // ibex_controller #(
   //   .WritebackStage  ( WritebackStage  ),
@@ -316,14 +297,13 @@ class ibex_id_stage extends Module {
 
   // TODO: LSU
   lsu_req := Mux(instr_executing, data_req_allowed & lsu_req_dec, "1".U)
-  lsu_req_o := lsu_req
-  lsu_we_o := lsu_we
-  lsu_sign_ext_o := lsu_sign_ext
-  lsu_wdata_o := rf_rdata_b_fwd
+  io.lsu_req_o := lsu_req
+  io.lsu_we_o := lsu_we
+  io.lsu_wdata_o := rf_rdata_b_fwd
 
-  alu_operator_ex_o := alu_operator
-  alu_operand_a_ex_o := alu_operand_a
-  alu_operand_b_ex_o := alu_operand_b
+  io.alu_operator_ex_o := alu_operator
+  io.alu_operand_a_ex_o := alu_operand_a
+  io.alu_operand_b_ex_o := alu_operand_b
 
   // logic branch_set_raw_q;
   //
@@ -337,7 +317,7 @@ class ibex_id_stage extends Module {
   //
   // assign branch_set_raw      = /* (BranchTargetALU && !data_ind_timing_i) ? branch_set_raw_d : */
 
-  branch_jump_set_done_d := (branch_set_raw | jump_set_raw | branch_jump_set_done_q) & ~instr_valid_clear_o
+  branch_jump_set_done_d := (branch_set_raw | jump_set_raw | branch_jump_set_done_q) & ~io.oinstr_valid_clear_o
   // always_ff @(posedge clk_i or negedge rst_ni) begin
   //   if (!rst_ni) begin
   //     branch_jump_set_done_q <= 1'b0;
