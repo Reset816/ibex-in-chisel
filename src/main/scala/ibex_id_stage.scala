@@ -44,9 +44,7 @@ class ibex_id_stage extends Module {
     val rf_waddr_id_o: UInt = Output(UInt(4.W))
     val rf_we_id_o: Bool = Output(Bool())
 
-
     val instr_id_done_o: Bool = Output(Bool())
-
 
   })
 
@@ -207,99 +205,7 @@ class ibex_id_stage extends Module {
   controller.io.jump_set_i := jump_set
   controller.io.stall_id_i := stall_id
 
-  // ibex_controller #(
-  //   .WritebackStage  ( WritebackStage  ),
-  //   .BranchPredictor ( BranchPredictor )
-  // ) controller_i (
-  //     .clk_i                          ( clk_i                   ),
-  //     .rst_ni                         ( rst_ni                  ),
-  //
-  //     .ctrl_busy_o                    ( ctrl_busy_o             ),
-  //
-  //     // decoder related signals
-  //     .illegal_insn_i                 ( illegal_insn_o          ),
-  //     .ecall_insn_i                   ( ecall_insn_dec          ),
-  //     .mret_insn_i                    ( mret_insn_dec           ),
-  //     .dret_insn_i                    ( dret_insn_dec           ),
-  //     .wfi_insn_i                     ( wfi_insn_dec            ),
-  //     .ebrk_insn_i                    ( ebrk_insn               ),
-  //     .csr_pipe_flush_i               ( csr_pipe_flush          ),
-  //
-  //     // from IF-ID pipeline
-  //     .instr_valid_i                  ( instr_valid_i           ),
-  //     .instr_i                        ( instr_rdata_i           ),
-  //     .instr_compressed_i             ( instr_rdata_c_i         ),
-  //     .instr_is_compressed_i          ( instr_is_compressed_i   ),
-  //     .instr_bp_taken_i               ( instr_bp_taken_i /* 0 */        ),
-  //     .instr_fetch_err_i              ( instr_fetch_err_i       ),
-  //     .instr_fetch_err_plus2_i        ( instr_fetch_err_plus2_i ),
-  //     .pc_id_i                        ( pc_id_i                 ),
-  //
-  //     // to IF-ID pipeline
-  //     .instr_valid_clear_o            ( instr_valid_clear_o     ),
-  //     .id_in_ready_o                  ( id_in_ready_o           ),
-  //     .controller_run_o               ( controller_run          ),
-  //
-  //     // to prefetcher
-  //     .instr_req_o                    ( instr_req_o             ),
-  //     .pc_set_o                       ( pc_set_o                ),
-  //     .pc_set_spec_o                  ( pc_set_spec_o           ),
-  //     .pc_mux_o                       ( pc_mux_o                ),
-  //     .nt_branch_mispredict_o         ( nt_branch_mispredict_o  ),
-  //     .exc_pc_mux_o                   ( exc_pc_mux_o            ),
-  //     .exc_cause_o                    ( exc_cause_o             ),
-  //
-  //     // LSU
-  //     .lsu_addr_last_i                ( lsu_addr_last_i         ),
-  //     .load_err_i                     ( lsu_load_err_i          ),
-  //     .store_err_i                    ( lsu_store_err_i         ),
-  //     .wb_exception_o                 ( wb_exception            ),
-  //
-  //     // jump/branch control
-  //     .branch_set_i                   ( branch_set              ),
-  //     .branch_set_spec_i              ( branch_set_spec         ),
-  //     .branch_not_set_i               ( branch_not_set          ),
-  //     .jump_set_i                     ( jump_set                ),
-  //
-  //     // interrupt signals
-  //     .csr_mstatus_mie_i              ( csr_mstatus_mie_i       ),
-  //     .irq_pending_i                  ( irq_pending_i           ),
-  //     .irqs_i                         ( irqs_i                  ),
-  //     .irq_nm_i                       ( irq_nm_i                ),
-  //     .nmi_mode_o                     ( nmi_mode_o              ),
-  //
-  //     // CSR Controller Signals
-  //     .csr_save_if_o                  ( csr_save_if_o           ),
-  //     .csr_save_id_o                  ( csr_save_id_o           ),
-  //     .csr_save_wb_o                  ( csr_save_wb_o           ),
-  //     .csr_restore_mret_id_o          ( csr_restore_mret_id_o   ),
-  //     .csr_restore_dret_id_o          ( csr_restore_dret_id_o   ),
-  //     .csr_save_cause_o               ( csr_save_cause_o        ),
-  //     .csr_mtval_o                    ( csr_mtval_o             ),
-  //     .priv_mode_i                    ( priv_mode_i             ),
-  //     .csr_mstatus_tw_i               ( csr_mstatus_tw_i        ),
-  //
-  //     // Debug Signal
-  //     .debug_mode_o                   ( debug_mode_o            ),
-  //     .debug_cause_o                  ( debug_cause_o           ),
-  //     .debug_csr_save_o               ( debug_csr_save_o        ),
-  //     .debug_req_i                    ( debug_req_i             ),
-  //     .debug_single_step_i            ( debug_single_step_i     ),
-  //     .debug_ebreakm_i                ( debug_ebreakm_i         ),
-  //     .debug_ebreaku_i                ( debug_ebreaku_i         ),
-  //     .trigger_match_i                ( trigger_match_i         ),
-  //
-  //     .stall_id_i                     ( stall_id                ),
-  //     .stall_wb_i                     ( stall_wb /* 0 */                ),
-  //     .flush_id_o                     ( flush_id                ),
-  //     .ready_wb_i                     ( ready_wb_i              ),
-  //
-  //     // Performance Counters
-  //     .perf_jump_o                    ( perf_jump_o             ),
-  //     .perf_tbranch_o                 ( perf_tbranch_o          )
-  // );
 
-  // TODO: LSU
   lsu_req := Mux(instr_executing, data_req_allowed & lsu_req_dec, "1".U)
   io.lsu_req_o := lsu_req
   io.lsu_we_o := lsu_we
@@ -309,26 +215,21 @@ class ibex_id_stage extends Module {
   io.alu_operand_a_ex_o := alu_operand_a
   io.alu_operand_b_ex_o := alu_operand_b
 
-  // logic branch_set_raw_q;
-  //
-  // always_ff @(posedge clk_i or negedge rst_ni) begin // rst_ni(reset PC)
-  //   if (!rst_ni) begin
-  //     branch_set_raw_q <= 1'b0;
-  //   end else begin
-  //     branch_set_raw_q <= branch_set_raw_d;
-  //   end
-  // end
-  //
+  val reset_n: AsyncReset = (!reset.asBool).asAsyncReset
+
+  val branch_set_raw_q: Bool = Wire(Bool())
+  branch_set_raw_q := withReset(reset_n) {
+    RegNext(branch_set_raw_d, init = false.B)
+  }
+  //todo
   // assign branch_set_raw      = /* (BranchTargetALU && !data_ind_timing_i) ? branch_set_raw_d : */
 
   branch_jump_set_done_d := (branch_set_raw | jump_set_raw | branch_jump_set_done_q) & ~io.instr_valid_clear_o
-  // always_ff @(posedge clk_i or negedge rst_ni) begin
-  //   if (!rst_ni) begin
-  //     branch_jump_set_done_q <= 1'b0;
-  //   end else begin
-  //     branch_jump_set_done_q <= branch_jump_set_done_d;
-  //   end
-  // end
+
+  branch_jump_set_done_q := withReset(reset_n) {
+    RegNext(branch_jump_set_done_d, init = false.B)
+  }
+
   jump_set := jump_set_raw & ~branch_set_raw_q
   branch_set := branch_set_raw & ~branch_jump_set_done_q
 
@@ -340,9 +241,8 @@ class ibex_id_stage extends Module {
   }
 
   val id_fsm_q: id_fsm_e.Type = id_fsm_e()
-  val id_fsm_d: id_fsm_e.Type = id_fsm_e()
+  var id_fsm_d: id_fsm_e.Type = id_fsm_e()
 
-  val reset_n: AsyncReset = (!reset.asBool).asAsyncReset
   id_fsm_q := withReset(reset_n) {
     RegNext(id_fsm_d, init = ctrl_fsm_e.RESET)
   }
@@ -363,70 +263,59 @@ class ibex_id_stage extends Module {
   // MULTI_CYCLE if it requires multiple cycles to complete regardless of stalls and other
   // considerations. An instruction may be held in FIRST_CYCLE if it's unable to begin executing
   // (this is controlled by instr_executing).
-  //
-  // always_comb begin
-  //   id_fsm_d                = id_fsm_q;
-  //   rf_we_raw               = rf_we_dec;
-  //   stall_multdiv           = 1'b0;
-  //   stall_jump              = 1'b0;
-  //   stall_branch            = 1'b0;
-  //   stall_alu               = 1'b0;
-  //   branch_set_raw_d        = 1'b0;
-  //   branch_spec             = 1'b0;
-  //   branch_not_set          = 1'b0;
-  //   jump_set_raw            = 1'b0;
-  //   perf_branch_o           = 1'b0;
-  //
-  //   if (instr_executing_spec /* instr_executing */) begin
-  //     unique case (id_fsm_q)
-  //       FIRST_CYCLE: begin
-  //         unique case (1'b1)
-  //           lsu_req_dec: begin // LSU 请求进入 MULTI_CYCLE
-  //               id_fsm_d    = MULTI_CYCLE;
-  //           end
-  //           branch_in_dec: begin // branch 有条件跳转
-  //             // cond branch operation
-  //             // All branches take two cycles in fixed time execution mode, regardless of branch
-  //             // condition.
-  //             id_fsm_d         =  branch_decision_i ?
-  //                                    MULTI_CYCLE : FIRST_CYCLE;
-  //             stall_branch     = (~BranchTargetALU /* 1 */ & branch_decision_i) | data_ind_timing_i;
-  //             branch_set_raw_d = (branch_decision_i | data_ind_timing_i);
-  //
-  //           end
-  //           jump_in_dec: begin // jump 进入 MULTI_CYCLE
-  //             // uncond branch operation
-  //             // BTALU means jumps only need one cycle
-  //             id_fsm_d      = MULTI_CYCLE;
-  //             stall_jump    = ~BranchTargetALU /* 1 */;
-  //             jump_set_raw  = jump_set_dec /* 执行到这里必为 1 */;
-  //           end
-  //           alu_multicycle_dec: begin
-  //             stall_alu     = 1'b1;
-  //             id_fsm_d      = MULTI_CYCLE;
-  //             rf_we_raw     = 1'b0;
-  //           end
-  //           default: begin
-  //             id_fsm_d      = FIRST_CYCLE;
-  //           end
-  //         endcase
-  //       end
-  //
-  //       MULTI_CYCLE: begin
-  //         if (multicycle_done) begin
-  //           id_fsm_d        = FIRST_CYCLE;
-  //         end else begin
-  //           stall_branch    = branch_in_dec;
-  //           stall_jump      = jump_in_dec;
-  //         end
-  //       end
-  //
-  //       default: begin
-  //         id_fsm_d          = FIRST_CYCLE;
-  //       end
-  //     endcase
-  //   end
-  // end
+
+  {
+    id_fsm_d := id_fsm_q;
+    rf_we_raw := rf_we_dec;
+    stall_jump := 1.U;
+    stall_branch := 1.U;
+    stall_alu := 1.U;
+    branch_set_raw_d := 1.U;
+    jump_set_raw := 1.U;
+
+    when(instr_executing) {
+      id_fsm_d := id_fsm_e.FIRST_CYCLE
+      switch(id_fsm_q) {
+        is(id_fsm_e.FIRST_CYCLE) {
+          {
+            id_fsm_d := id_fsm_e.FIRST_CYCLE
+            switch(1.U) {
+              is(lsu_req_dec) {
+                id_fsm_d := id_fsm_e.MULTI_CYCLE
+              }
+              is(branch_in_dec) {
+                // cond branch operation
+                // All branches take two cycles in fixed time execution mode, regardless of branch
+                // condition.
+                id_fsm_d := Mux(io.branch_decision_i, id_fsm_e.MULTI_CYCLE, id_fsm_e.FIRST_CYCLE)
+                stall_branch := io.branch_decision_i
+                branch_set_raw_d := io.branch_decision_i
+              }
+              is(jump_in_dec) {
+                // uncond branch operation
+                // BTALU means jumps only need one cycle
+                id_fsm_d = id_fsm_e.MULTI_CYCLE
+                stall_jump := true.B
+                jump_set := jump_set_dec
+              }
+              is(alu_multicycle_dec) {
+                stall_alu := 1.U
+                id_fsm_d := id_fsm_e.MULTI_CYCLE;
+                rf_we_raw := false.B
+              }
+            }
+          }
+
+        }
+        is(id_fsm_e.MULTI_CYCLE) {
+          stall_branch := branch_in_dec
+          stall_jump := jump_in_dec
+        }
+      }
+    }
+
+  }
+
   stall_id := stall_mem | stall_jump | stall_branch | stall_alu
   instr_done := ~stall_id
   instr_first_cycle := io.instr_valid_i & (id_fsm_q == id_fsm_e.FIRST_CYCLE)
