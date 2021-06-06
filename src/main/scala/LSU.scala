@@ -9,7 +9,7 @@ class LSU extends Module {
     val data_r_o: UInt = Output(UInt(32.W)) // LSU传给CPU需要读的数据
     val lsu_finish: Bool = Input(Bool()) // LSU 返回给CPU操作完成
 
-    val lsu_busy: Bool = Input(Bool()) // LSU 正在等待内存传回数据
+    val lsu_busy: Bool = Output(Bool()) // LSU 正在等待内存传回数据
 
     val data_vaild: Bool = Output(Bool()) // LSU 的数据是否有效
 
