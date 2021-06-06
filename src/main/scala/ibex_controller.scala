@@ -35,6 +35,15 @@ class ibex_controller extends Module {
     //    val test : ctrl_fsm_e.Type = Output(ctrl_fsm_e())
   })
 
+  object ctrl_fsm_e extends ChiselEnum {
+    val
+    RESET,
+    BOOT_SET,
+    FIRST_FETCH,
+    DECODE
+    = Value
+  }
+
   /////////////////////
   // Core controller //
   /////////////////////

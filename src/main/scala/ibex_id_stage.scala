@@ -6,7 +6,7 @@ import chisel3.experimental.ChiselEnum
 
 class ibex_id_stage extends Module {
   val io = IO(new Bundle {
-    val ctrl_busy_o: Bool = Input(Bool())
+    val ctrl_busy_o: Bool = Output(Bool())
 
     val instr_valid_i: Bool = Input(Bool())
     val instr_rdata_i: Bool = Input(Bool())
@@ -53,7 +53,6 @@ class ibex_id_stage extends Module {
   val branch_set: Bool = Wire(Bool())
   val branch_set_raw: Bool = Wire(Bool())
   val branch_set_raw_d: Bool = Wire(Bool())
-  val branch_set_raw_q: Bool = Wire(Bool())
 
   val branch_jump_set_done_q: Bool = Wire(Bool())
   val branch_jump_set_done_d: Bool = Wire(Bool())
@@ -129,17 +128,17 @@ class ibex_id_stage extends Module {
   val alu_operand_a: UInt = Wire(UInt(32.W))
   val alu_operand_b: UInt = Wire(UInt(32.W))
 
-  imm_a := Mux(imm_a_mux_sel === imm_a_sel_e.IMM_A_Z, zimm_rs1_type, "0".U)
+  imm_a := 0.U
 
-  alu_operand_a := MuxLookup(alu_op_a_mux_sel, io.pc_id_i, Array(
-    op_a_sel_e.OP_A_REG_A.asUInt() -> rf_rdata_a_fwd,
+  alu_operand_a := MuxLookup(alu_op_a_mux_sel.asUInt(), io.pc_id_i.asUInt(), Array(
+    op_a_sel_e.OP_A_REG_A.asUInt() -> rf_rdata_a_fwd.asUInt(),
     // todo: 不支持异常，不可能进入这种情况
     // op_a_sel_e.OP_A_FWD.asUInt() -> io.lsu_addr_last_i,
-    op_a_sel_e.OP_A_CURRPC.asUInt() -> io.pc_id_i,
-    op_a_sel_e.OP_A_IMM.asUInt() -> imm_a,
+    op_a_sel_e.OP_A_CURRPC.asUInt() -> io.pc_id_i.asUInt(),
+    op_a_sel_e.OP_A_IMM.asUInt() -> imm_a.asUInt()
   ))
 
-  imm_b := MuxLookup(imm_b_mux_sel, 4.U(32.W), Array(
+  imm_b := MuxLookup(imm_b_mux_sel.asUInt(), 4.U(32.W), Array(
     imm_b_sel_e.IMM_B_I.asUInt() -> imm_i_type,
     imm_b_sel_e.IMM_B_S.asUInt() -> imm_s_type,
     imm_b_sel_e.IMM_B_B.asUInt() -> imm_b_type,
@@ -206,7 +205,7 @@ class ibex_id_stage extends Module {
   controller.io.stall_id_i := stall_id
 
 
-  lsu_req := Mux(instr_executing, data_req_allowed & lsu_req_dec, "1".U)
+  lsu_req := Mux(instr_executing, data_req_allowed & lsu_req_dec, true.B)
   io.lsu_req_o := lsu_req
   io.lsu_we_o := lsu_we
   io.lsu_wdata_o := rf_rdata_b_fwd
@@ -240,11 +239,11 @@ class ibex_id_stage extends Module {
     = Value
   }
 
-  val id_fsm_q: id_fsm_e.Type = id_fsm_e()
-  var id_fsm_d: id_fsm_e.Type = id_fsm_e()
+  val id_fsm_q: id_fsm_e.Type = Wire(id_fsm_e())
+  val id_fsm_d: id_fsm_e.Type = Wire(id_fsm_e())
 
   id_fsm_q := withReset(reset_n) {
-    RegNext(id_fsm_d, init = ctrl_fsm_e.RESET)
+    RegNext(id_fsm_d, init = id_fsm_e.FIRST_CYCLE)
   }
 
   withReset(reset_n) {
@@ -274,43 +273,34 @@ class ibex_id_stage extends Module {
     jump_set_raw := 1.U;
 
     when(instr_executing) {
-      id_fsm_d := id_fsm_e.FIRST_CYCLE
-      switch(id_fsm_q) {
-        is(id_fsm_e.FIRST_CYCLE) {
-          {
-            id_fsm_d := id_fsm_e.FIRST_CYCLE
-            switch(1.U) {
-              is(lsu_req_dec) {
-                id_fsm_d := id_fsm_e.MULTI_CYCLE
-              }
-              is(branch_in_dec) {
-                // cond branch operation
-                // All branches take two cycles in fixed time execution mode, regardless of branch
-                // condition.
-                id_fsm_d := Mux(io.branch_decision_i, id_fsm_e.MULTI_CYCLE, id_fsm_e.FIRST_CYCLE)
-                stall_branch := io.branch_decision_i
-                branch_set_raw_d := io.branch_decision_i
-              }
-              is(jump_in_dec) {
-                // uncond branch operation
-                // BTALU means jumps only need one cycle
-                id_fsm_d = id_fsm_e.MULTI_CYCLE
-                stall_jump := true.B
-                jump_set := jump_set_dec
-              }
-              is(alu_multicycle_dec) {
-                stall_alu := 1.U
-                id_fsm_d := id_fsm_e.MULTI_CYCLE;
-                rf_we_raw := false.B
-              }
-            }
-          }
-
+      when(id_fsm_q === id_fsm_e.FIRST_CYCLE) {
+        when(lsu_req_dec === true.B) {
+          id_fsm_d := id_fsm_e.MULTI_CYCLE
+        }.elsewhen(branch_in_dec === true.B) {
+          // cond branch operation
+          // All branches take two cycles in fixed time execution mode, regardless of branch
+          // condition.
+          id_fsm_d := Mux(io.branch_decision_i, id_fsm_e.MULTI_CYCLE, id_fsm_e.FIRST_CYCLE)
+          stall_branch := io.branch_decision_i
+          branch_set_raw_d := io.branch_decision_i
+        }.elsewhen(jump_in_dec === true.B) {
+          // uncond branch operation
+          // BTALU means jumps only need one cycle
+          id_fsm_d := id_fsm_e.MULTI_CYCLE
+          stall_jump := true.B
+          jump_set := jump_set_dec
+        }.elsewhen(alu_multicycle_dec === true.B) {
+          stall_alu := 1.U
+          id_fsm_d := id_fsm_e.MULTI_CYCLE;
+          rf_we_raw := false.B
+        }.otherwise {
+          id_fsm_d := id_fsm_e.FIRST_CYCLE
         }
-        is(id_fsm_e.MULTI_CYCLE) {
-          stall_branch := branch_in_dec
-          stall_jump := jump_in_dec
-        }
+      }.elsewhen(id_fsm_q === id_fsm_e.MULTI_CYCLE) {
+        stall_branch := branch_in_dec
+        stall_jump := jump_in_dec
+      }.otherwise {
+        id_fsm_d := id_fsm_e.FIRST_CYCLE
       }
     }
 
@@ -318,7 +308,7 @@ class ibex_id_stage extends Module {
 
   stall_id := stall_mem | stall_jump | stall_branch | stall_alu
   instr_done := ~stall_id
-  instr_first_cycle := io.instr_valid_i & (id_fsm_q == id_fsm_e.FIRST_CYCLE)
+  instr_first_cycle := io.instr_valid_i & (id_fsm_q === id_fsm_e.FIRST_CYCLE)
   io.instr_first_cycle_id_o := instr_first_cycle
 
   // 多周期指令完成：
