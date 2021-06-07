@@ -69,13 +69,14 @@ class ibex_id_stage extends Module {
   val instr_executing: Bool = Wire(Bool())
   val instr_done: Bool = Wire(Bool())
   val controller_run: Bool = Wire(Bool())
-  val stall_id_hz: Bool = Wire(Bool())
+  val stall_ld_hz: Bool = Wire(Bool())
   val stall_mem: Bool = Wire(Bool())
   val stall_branch: Bool = Wire(Bool())
   val stall_jump: Bool = Wire(Bool())
   val stall_id: Bool = Wire(Bool())
   val multicycle_done: Bool = Wire(Bool())
 
+  // Immediate decoding and sign extension
   val imm_i_type: UInt = Wire(UInt(32.W))
   val imm_s_type: UInt = Wire(UInt(32.W))
   val imm_b_type: UInt = Wire(UInt(32.W))
@@ -98,6 +99,7 @@ class ibex_id_stage extends Module {
   val rf_ren_a_dec: Bool = Wire(Bool())
   val rf_ren_b_dec: Bool = Wire(Bool())
 
+  // Read enables should only be asserted for valid and legal instructions
   rf_ren_a := io.instr_valid_i & rf_ren_a_dec
   rf_ren_b := io.instr_valid_i & rf_ren_b_dec
 
@@ -107,6 +109,7 @@ class ibex_id_stage extends Module {
   val rf_rdata_a_fwd: UInt = Wire(UInt(32.W))
   val rf_rdata_b_fwd: UInt = Wire(UInt(32.W))
 
+  // ALU Control
   val alu_operator: alu_op_e.Type = Wire(alu_op_e())
   val alu_op_a_mux_sel: op_a_sel_e.Type = Wire(op_a_sel_e())
   val alu_op_a_mux_sel_dec: op_a_sel_e.Type = Wire(op_a_sel_e())
@@ -114,12 +117,12 @@ class ibex_id_stage extends Module {
   val alu_op_b_mux_sel_dec: op_b_sel_e.Type = Wire(op_b_sel_e())
   val alu_multicycle_dec: Bool = Wire(Bool())
   val stall_alu: Bool = Wire(Bool())
+
   val imm_a_mux_sel: imm_a_sel_e.Type = Wire(imm_a_sel_e())
   val imm_b_mux_sel: imm_b_sel_e.Type = Wire(imm_b_sel_e())
   val imm_b_mux_sel_dec: imm_b_sel_e.Type = Wire(imm_b_sel_e())
 
-
-  // TODO: Data Memory Control
+  // Data Memory Control
   val lsu_we: Bool = Wire(Bool())
   val lsu_req: Bool = Wire(Bool())
   val lsu_req_dec: Bool = Wire(Bool())
@@ -128,8 +131,23 @@ class ibex_id_stage extends Module {
   val alu_operand_a: UInt = Wire(UInt(32.W))
   val alu_operand_b: UInt = Wire(UInt(32.W))
 
+  /////////////
+  // LSU Mux //
+  /////////////
+
+  // Misaligned loads/stores result in two aligned loads/stores, compute second address
+  alu_op_a_mux_sel := alu_op_a_mux_sel_dec
+  alu_op_b_mux_sel := alu_op_b_mux_sel_dec
+  imm_b_mux_sel := imm_b_mux_sel_dec
+
+  ///////////////////
+  // Operand MUXES //
+  ///////////////////
+
+  // Main ALU immediate MUX for Operand A
   imm_a := 0.U
 
+  // Main ALU MUX for Operand A
   alu_operand_a := MuxLookup(alu_op_a_mux_sel.asUInt(), io.pc_id_i.asUInt(), Array(
     op_a_sel_e.OP_A_REG_A.asUInt() -> rf_rdata_a_fwd.asUInt(),
     // todo: 不支持异常，不可能进入这种情况
@@ -138,6 +156,7 @@ class ibex_id_stage extends Module {
     op_a_sel_e.OP_A_IMM.asUInt() -> imm_a.asUInt()
   ))
 
+  // Full main ALU immediate MUX for Operand B
   imm_b := MuxLookup(imm_b_mux_sel.asUInt(), 4.U(32.W), Array(
     imm_b_sel_e.IMM_B_I.asUInt() -> imm_i_type,
     imm_b_sel_e.IMM_B_S.asUInt() -> imm_s_type,
@@ -148,11 +167,22 @@ class ibex_id_stage extends Module {
     imm_b_sel_e.IMM_B_INCR_ADDR.asUInt() -> 4.U(32.W),
   ))
 
+  // ALU MUX for Operand B
   alu_operand_b := Mux(alu_op_b_mux_sel === op_b_sel_e.OP_B_IMM, imm_b, rf_rdata_b_fwd)
+
+  ///////////////////////
+  // Register File MUX //
+  ///////////////////////
+
+  // Suppress register write if there is an illegal CSR access or instruction is not executing
   io.rf_we_id_o := rf_we_raw & instr_executing
 
+
+  /////////////
+  // Decoder //
+  /////////////
+
   val decoder: ibex_decoder = Module(new ibex_decoder)
-  // todo: clk_i & rst_ni
   jump_set_dec := decoder.io.jump_set_o
   decoder.io.branch_taken_i := true.B // branch_taken_i 永远为true
   decoder.io.instr_first_cycle_i := instr_first_cycle
@@ -166,7 +196,6 @@ class ibex_id_stage extends Module {
   imm_b_type := decoder.io.imm_b_type_o
   imm_u_type := decoder.io.imm_u_type_o
   imm_j_type := decoder.io.imm_j_type_o
-  zimm_rs1_type := decoder.io.zimm_rs1_type_o
 
   rf_wdata_sel := decoder.io.rf_wdata_sel_o
   rf_we_dec := decoder.io.rf_we_o
@@ -190,9 +219,11 @@ class ibex_id_stage extends Module {
   jump_in_dec := decoder.io.jump_in_dec_o
   branch_in_dec := decoder.io.branch_in_dec_o
 
+  ////////////////
+  // Controller //
+  ////////////////
 
   val controller: ibex_controller = Module(new ibex_controller)
-  // todo: clk_i & rst_ni
   io.ctrl_busy_o <> controller.io.ctrl_busy_o
   io.instr_valid_clear_o <> controller.io.instr_valid_clear_o
   io.id_in_ready_o <> controller.io.id_in_ready_o
@@ -214,6 +245,10 @@ class ibex_id_stage extends Module {
   io.alu_operand_a_ex_o := alu_operand_a
   io.alu_operand_b_ex_o := alu_operand_b
 
+  ////////////////////////
+  // Branch set control //
+  ////////////////////////
+
   val reset_n: AsyncReset = (!reset.asBool).asAsyncReset
 
   val branch_set_raw_q: Bool = Wire(Bool())
@@ -221,23 +256,31 @@ class ibex_id_stage extends Module {
     RegNext(branch_set_raw_d, init = false.B)
   }
 
+  // Branches always take two cycles in fixed time execution mode, with or without the branch
+  // target ALU (to avoid a path from the branch decision into the branch target ALU operand
+  // muxing).
   branch_set_raw := branch_set_raw_q
 
+  // Track whether the current instruction in ID/EX has done a branch or jump set.
   branch_jump_set_done_d := (branch_set_raw | jump_set_raw | branch_jump_set_done_q) & ~io.instr_valid_clear_o
 
   branch_jump_set_done_q := withReset(reset_n) {
     RegNext(branch_jump_set_done_d, init = false.B)
   }
 
+  // the _raw signals from the state machine may be asserted for multiple cycles when
+  // instr_executing_spec is asserted and instr_executing is not asserted. This may occur where
+  // a memory error is seen or a there are outstanding memory accesses (indicate a load or store is
+  // in the WB stage). The branch or jump speculatively begins the fetch but is held back from
+  // completing until it is certain the outstanding access hasn't seen a memory error. This logic
+  // ensures only the first cycle of a branch or jump set is sent to the controller to prevent
+  // needless extra IF flushes and fetches.
   jump_set := jump_set_raw & ~branch_set_raw_q
   branch_set := branch_set_raw & ~branch_jump_set_done_q
 
-  object id_fsm_e extends ChiselEnum {
-    val
-    FIRST_CYCLE,
-    MULTI_CYCLE
-    = Value
-  }
+  ///////////////
+  // ID-EX FSM //
+  ///////////////
 
   val id_fsm_q: id_fsm_e.Type = Wire(id_fsm_e())
   val id_fsm_d: id_fsm_e.Type = Wire(id_fsm_e())
@@ -266,11 +309,11 @@ class ibex_id_stage extends Module {
   {
     id_fsm_d := id_fsm_q;
     rf_we_raw := rf_we_dec;
-    stall_jump := 1.U;
-    stall_branch := 1.U;
-    stall_alu := 1.U;
-    branch_set_raw_d := 1.U;
-    jump_set_raw := 1.U;
+    stall_jump := 0.U;
+    stall_branch := 0.U;
+    stall_alu := 0.U;
+    branch_set_raw_d := 0.U;
+    jump_set_raw := 0.U;
 
     when(instr_executing) {
       when(id_fsm_q === id_fsm_e.FIRST_CYCLE) {
@@ -306,6 +349,8 @@ class ibex_id_stage extends Module {
 
   }
 
+  // Stall ID/EX stage for reason that relates to instruction in ID/EX, update assertion below if
+  // modifying this.
   stall_id := stall_mem | stall_jump | stall_branch | stall_alu
   instr_done := ~stall_id
   instr_first_cycle := io.instr_valid_i & (id_fsm_q === id_fsm_e.FIRST_CYCLE)
@@ -316,7 +361,15 @@ class ibex_id_stage extends Module {
   // - execute block 完成
   multicycle_done := Mux(lsu_req_dec, io.lsu_resp_valid_i, io.ex_valid_i)
   data_req_allowed := instr_first_cycle
+
+  // Without Writeback Stage always stall the first cycle of a load/store.
+  // Then stall until it is complete
   stall_mem := io.instr_valid_i & (lsu_req_dec & (~io.lsu_resp_valid_i | instr_first_cycle))
+
+  // No load hazards without Writeback Stage
+  stall_ld_hz := 0.U
+
+  // Without writeback stage any valid instruction that hasn't seen an error will execute
   instr_executing := io.instr_valid_i & controller_run
 
   // No data forwarding without writeback stage so always take source register data direct from
