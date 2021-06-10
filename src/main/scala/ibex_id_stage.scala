@@ -113,7 +113,7 @@ class ibex_id_stage extends Module {
 
     // Register file write (via writeback)
     val rf_waddr_id_o: UInt = Output(UInt(4.W))
-    val rf_wdata_id_o: UInt = Input(UInt(32.W))
+    val rf_wdata_id_o: UInt = Output(UInt(32.W))
     val rf_we_id_o: Bool = Output(Bool())
     //    output logic                      rf_rd_a_wb_match_o,
     //    output logic                      rf_rd_b_wb_match_o,

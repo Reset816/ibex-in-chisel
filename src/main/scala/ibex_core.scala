@@ -9,10 +9,10 @@ class ibex_core extends Module {
     // Data memory interface
     val data_addr_o: UInt = Output(UInt(32.W)) // LSU 传给内存需要操作的地址
     val data_w_req_o: Bool = Output(Bool()) // LSU 请求内存写操作
-    val data_w_o: UInt = Input(UInt(32.W)) // LSU传给内存需要写的数据
-    val data_r_req_o: Bool = Input(Bool()) // LSU 请求内存读操作
-    val data_r_i: UInt = Output(UInt(32.W)) // 内存返回给 LSU 的数据
-    val read_data_vaild_o: Bool = Output(Bool()) // 内存返回的数据是否有效
+    val data_w_o: UInt = Output(UInt(32.W)) // LSU传给内存需要写的数据
+    val data_r_req_o: Bool = Output(Bool()) // LSU 请求内存读操作
+    val data_r_i: UInt = Input(UInt(32.W)) // 内存返回给 LSU 的数据
+    val read_data_vaild_i: Bool = Input(Bool()) // 内存返回的数据是否有效
 
     val core_busy_o: Bool = Output(Bool())
   })
