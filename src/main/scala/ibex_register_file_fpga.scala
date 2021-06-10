@@ -7,11 +7,8 @@ class ibex_register_file_fpga(
                                val DummyInstructions: Bool = false.B,
                              ) extends Module {
   val io = IO(new Bundle {
-    //Clock and Reset
-    val rst_ni: UInt = Input(UInt(1.W))
-
-    val test_en_i: UInt = Input(UInt(1.W))
-    val dummy_instr_id_i: UInt = Input(UInt(1.W))
+    val test_en_i: Bool = Input(Bool())
+    val dummy_instr_id_i: Bool = Input(Bool())
 
     //Read port R1
     val raddr_a_i: UInt = Input(UInt(5.W))
@@ -22,7 +19,7 @@ class ibex_register_file_fpga(
     //Write port W1
     val waddr_a_i: UInt = Input(UInt(5.W))
     val wdata_a_i: UInt = Input(UInt(32.W))
-    val we_a_i: UInt = Input(UInt(1.W))
+    val we_a_i: Bool = Input(Bool())
   })
 
   val ADDR_WIDTH: UInt = 5.U
@@ -43,9 +40,6 @@ class ibex_register_file_fpga(
       mem(io.waddr_a_i) := io.wdata_a_i
     }
 
-  // Reset not used in this register file version
-  val unused_rst_ni: Bool = Wire(Bool())
-  unused_rst_ni := io.rst_ni
 
   // Dummy instruction changes not relevant for FPGA implementation
   val unused_dummy_instr: Bool = Wire(Bool())

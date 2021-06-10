@@ -21,16 +21,16 @@ class ibex_alu(
 
     val multdiv_sel_i: Bool = Input(Bool())
 
-    val imd_val_q_i: Vec[UInt] = Input(Vec(2, UInt(32.W)))
+    // val imd_val_q_i: Vec[UInt] = Input(Vec(2, UInt(32.W)))
     //    val imd_val_d_o: Vec[UInt] = Output(Vec(2, UInt(32.W)))
     //    val imd_val_we_o: UInt = Output(UInt(2.W))
 
     val adder_result_o: UInt = Output(UInt(32.W))
-    val adder_result_ext_o: UInt = Output(UInt(34.W))
+    val adder_result_ext_o: UInt = Output(UInt(34.W)) // todo: 删除这个端口，这个端口作为 div/mul 部件的输入存在
 
     val result_o: UInt = Output(UInt(32.W))
     val comparison_result_o: Bool = Output(Bool())
-    val is_equal_result_o: Bool = Output(Bool())
+    // val is_equal_result_o: Bool = Output(Bool())
 
   })
 
@@ -107,7 +107,7 @@ class ibex_alu(
   ))
 
   is_equal := (adder_result === "b0".U(32.W))
-  io.is_equal_result_o := is_equal
+  // io.is_equal_result_o := is_equal
 
   // Is greater equal
   when((io.operand_a_i(31) ^ io.operand_b_i(31)) === false.B) { // 如果a和b同号
