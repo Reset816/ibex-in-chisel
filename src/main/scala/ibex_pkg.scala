@@ -311,6 +311,14 @@ object dbg_cause_e extends ChiselEnum {
   val DBG_CAUSE_HALTREQ = Value(0x3.U(3.W))
   val DBG_CAUSE_STEP = Value(0x4.U(3.W))
 }
+
+object id_fsm_e extends ChiselEnum {
+  val
+  FIRST_CYCLE,
+  MULTI_CYCLE
+  = Value
+}
+
 //
 ////// PMP constants
 ////val PMP_MAX_REGIONS      = 16.U
