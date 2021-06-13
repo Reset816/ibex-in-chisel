@@ -63,11 +63,17 @@ class ibex_core extends Module {
     //////////////////
     val lsu = Module(new LSU)
     val lsu_valid := ~lsu.io.lsu_busy
-    lsu.io.lsu_resp_valid_i := lsu_valid
     lsu.io.addr_i <> alu.io.adder_result_ext_o
     lsu.io.write_enable <> id_stage.io.lsu_we_o
     lsu.io.data_w_i <> id_stage.io.lsu_wdata_o
     lsu.read_req <> id_stage.io.lsu_req_o
+    lsu.io.data_addr_o <> io.data_addr_o
+    lsu.io.data_w_req_o <> io.data_w_req_o
+    lsu.io.data_w_o <> io.data_w_o
+    lsu.io.data_r_req_o <> io.data_r_req_o
+    lsu.io.data_r_i <> io.data_r_i
+    lsu.io.read_data_vaild_i <> io.read_data_vaild_i
+
 
 
     /////////////////////////////
@@ -76,11 +82,30 @@ class ibex_core extends Module {
     val regs = Module(new ibex_register_file_fpga)
     regs.io.test_en_i := false.B // Unused port
     regs.io.dummy_instr_id_i := false.B // Unused port
+
+    regs.io.waddr_a_i <> id_stage.io.rf_waddr_id_o
+    regs.io.we_a_i := rf_we
+    regs.io.wdata_a_i := rf_wdata
     regs.io.raddr_a_i <> id_stage.io.rf_waddr_id_o
     regs.io.rdata_a_o <> id_stage.io.rf_rdata_a_i
     regs.io.raddr_b_i <> id_stage.io.rf_raddr_b_o
     regs.io.rdata_b_o <> id_stage.io.rf_rdata_b_i
-    regs.io.waddr_a_i <> id_stage.io.rf_waddr_id_o
-    regs.io.wdata_a_i <> id_stage.io.rf_wdata_id_o
-    regs.io.we_a_i <> id_stage.io.rf_we_id_o
+
+    val rf_wdata_id = Wire(UInt(32.W))
+    val rf_we_id = Wire(Bool())
+    val rf_wdata_lsu = Wire(UInt(32.W))
+    val rf_we_lsu = Wire(Bool())
+    val rf_wdata = Wire(UInt(32.W))
+    val rf_we = Wire(Bool())
+    rf_wdata_id := id_stage.io.rf_wdata_id_o
+    rf_we_id := id_stage.io.rf_we_id_o
+    rf_wdata_lsu := io.data_r_i
+    rf_we_lsu := lsu.io.data_vaild
+    rf_wdata := Mux(rf_we_id == true.B, rf_wdata_id, rf_wdata_lsu)
+    rf_we := rf_we_id | rf_we_lsu
+
+    /////////////////////////////
+    //          Mis           //
+    /////////////////////////////
+    io.core_busy_o := if_stage.io.if_busy_o | id_stage.io.ctrl_busy_o | lsu.io.lsu_busy
 }
