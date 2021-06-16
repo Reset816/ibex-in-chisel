@@ -16,11 +16,6 @@ class ibex_alu(
 
     val instr_first_cycle_i: Bool = Input(Bool())
 
-    val multdiv_operand_a_i: UInt = Input(UInt(33.W))
-    val multdiv_operand_b_i: UInt = Input(UInt(33.W))
-
-    val multdiv_sel_i: Bool = Input(Bool())
-
     // val imd_val_q_i: Vec[UInt] = Input(Vec(2, UInt(32.W)))
     //    val imd_val_d_o: Vec[UInt] = Output(Vec(2, UInt(32.W)))
     //    val imd_val_we_o: UInt = Output(UInt(2.W))
@@ -72,13 +67,11 @@ class ibex_alu(
   ))
 
   // prepare operand a
-  adder_in_a := Mux(io.multdiv_sel_i, io.multdiv_operand_a_i, Cat(io.operand_a_i.asUInt, "b1".U(1.W)))
+  adder_in_a := Cat(io.operand_a_i.asUInt, "b1".U(1.W))
 
   // prepare operand b
   operand_b_neg := Cat(io.operand_b_i, "b0".U(1.W)) ^ Fill(33, true.B) // Reference: https://stackoverflow.com/questions/56439589/how-to-duplicate-a-single-bit-to-a-uint-in-chisel-3
-  when(true.B === io.multdiv_sel_i) {
-    adder_in_b := io.multdiv_operand_b_i
-  }.elsewhen(true.B === adder_op_b_negate) {
+  when(true.B === adder_op_b_negate) {
     adder_in_b := operand_b_neg
   }.otherwise {
     adder_in_b := Cat(io.operand_b_i, "b0".U(1.W))

@@ -39,7 +39,6 @@ class ibex_decoder(
     val imm_b_type_o: UInt = Output(UInt(32.W))
     val imm_u_type_o: UInt = Output(UInt(32.W))
     val imm_j_type_o: UInt = Output(UInt(32.W))
-    val zimm_rs1_type_o: UInt = Output(UInt(32.W))
 
     // register file
     val rf_wdata_sel_o: rf_wd_sel_e.Type = Output(rf_wd_sel_e())
