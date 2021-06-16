@@ -33,20 +33,14 @@ class ibex_if_stage(
   })
   val instr_valid_id_d: Bool = Wire(Bool())
   val instr_valid_id_q: Bool = Wire(Bool())
-  val instr_new_id_d: Bool = Wire(Bool())
-  val instr_new_id_q: Bool = Wire(Bool())
-
   // instruction memory related signals
   val instruction_mem_busy: Bool = Wire(Bool())
 
   val fetch_addr_n: UInt = Wire(UInt(32.W))
 
   val fetch_valid: Bool = Wire(Bool())
-  val fetch_ready: Bool = Wire(Bool())
   val fetch_rdata: UInt = Wire(UInt(32.W))
   val fetch_addr: UInt = Wire(UInt(32.W))
-  val fetch_err: Bool = Wire(Bool())
-  val fetch_err_plus2: Bool = Wire(Bool())
 
   val if_instr_valid: Bool = Wire(Bool())
   val if_instr_rdata: UInt = Wire(UInt(32.W))
@@ -64,7 +58,7 @@ class ibex_if_stage(
 
 
   val instruction_mem = Module(new InstructionMem)
-  instruction_mem.io.PC <>  fetch_addr_n
+  instruction_mem.io.PC <> fetch_addr_n
   instruction_mem.io.req_i <> io.req_i
   instruction_mem.io.fetch_ready_i <> io.id_in_ready_i
 
@@ -72,7 +66,7 @@ class ibex_if_stage(
   fetch_valid := instruction_mem.io.fetch_valid_o
   instruction_mem_busy := instruction_mem.io.busy_o
   instr_out := instruction_mem.io.fetch_rdata_o
-
+  fetch_rdata := instruction_mem.io.fetch_rdata_o
   io.pc_if_o := if_instr_addr
   io.if_busy_o := instruction_mem_busy
 
@@ -93,8 +87,12 @@ class ibex_if_stage(
 
   withReset(reset_n) {
     instr_valid_id_q := RegNext(0.U, init = instr_valid_id_d)
-    instr_new_id_q := RegNext(0.U, init = instr_new_id_d)
   }
+
+  io.instr_rdata_id_o := 0.U
+  io.instr_rdata_alu_id_o := 0.U
+  io.pc_id_o := 0.U
+
 
   when(if_id_pipe_reg_we) { // Reference: https://stackoverflow.com/questions/62388061/how-to-define-output-reg-in-chisel-properly
     io.instr_rdata_id_o := RegNext(instr_out)

@@ -16,20 +16,33 @@ class ibex_core extends Module {
 
     val core_busy_o: Bool = Output(Bool())
   })
+  val alu = Module(new ibex_alu)
 
-  ///////////////////////////////
-  //    IF-Stage and ID-Stage  //
-  ///////////////////////////////
   val if_stage = Module(new ibex_if_stage)
   val id_stage = Module(new ibex_id_stage)
   val pc_if = Wire(UInt(32.W)) // Unused
   val instr_id_done = Wire(Bool()) // Unused
   val if_busy = Wire(Bool()) // Used outside core
   val ctrl_busy = Wire(Bool()) // Used outside core
+
+  val lsu = Module(new LSU)
+  val lsu_valid = Wire(Bool())
+
+  val rf_wdata_id = Wire(UInt(32.W))
+  val rf_we_id = Wire(Bool())
+  val rf_wdata_lsu = Wire(UInt(32.W))
+  val rf_we_lsu = Wire(Bool())
+  val rf_wdata = Wire(UInt(32.W))
+  val rf_we = Wire(Bool())
+
+  ///////////////////////////////
+  //    IF-Stage and ID-Stage  //
+  ///////////////////////////////
   pc_if := if_stage.io.pc_if_o
   if_busy := if_stage.io.if_busy_o
   ctrl_busy := id_stage.io.ctrl_busy_o
   instr_id_done := id_stage.io.instr_id_done_o
+
   if_stage.io.req_i <> id_stage.io.instr_req_o
   if_stage.io.boot_addr_i <> io.boot_addr_i
   if_stage.io.instr_valid_id_o <> id_stage.io.instr_valid_i
@@ -48,7 +61,6 @@ class ibex_core extends Module {
   ///////////////////
   //      ALU      //
   ///////////////////
-  val alu = Module(new ibex_alu)
 
   alu.io.operator_i <> id_stage.io.alu_operator_ex_o
   alu.io.operand_a_i <> id_stage.io.alu_operand_a_ex_o
@@ -61,8 +73,6 @@ class ibex_core extends Module {
   //////////////////
   //     LSU      //
   //////////////////
-  val lsu = Module(new LSU)
-  val lsu_valid = Wire(Bool())
   lsu_valid := ~lsu.io.lsu_busy
   lsu.io.addr_i <> alu.io.adder_result_ext_o
   lsu.io.write_enable <> id_stage.io.lsu_we_o
@@ -91,12 +101,6 @@ class ibex_core extends Module {
   regs.io.raddr_b_i <> id_stage.io.rf_raddr_b_o
   regs.io.rdata_b_o <> id_stage.io.rf_rdata_b_i
 
-  val rf_wdata_id = Wire(UInt(32.W))
-  val rf_we_id = Wire(Bool())
-  val rf_wdata_lsu = Wire(UInt(32.W))
-  val rf_we_lsu = Wire(Bool())
-  val rf_wdata = Wire(UInt(32.W))
-  val rf_we = Wire(Bool())
   rf_wdata_id := id_stage.io.rf_wdata_id_o
   rf_we_id := id_stage.io.rf_we_id_o
   rf_wdata_lsu := io.data_r_i

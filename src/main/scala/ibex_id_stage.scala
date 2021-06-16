@@ -166,7 +166,6 @@ class ibex_id_stage extends Module {
   val imm_b_type: UInt = Wire(UInt(32.W))
   val imm_u_type: UInt = Wire(UInt(32.W))
   val imm_j_type: UInt = Wire(UInt(32.W))
-  val zimm_rs1_type: UInt = Wire(UInt(32.W))
 
   val imm_a: UInt = Wire(UInt(32.W)) // contains the immediate for operand b
   val imm_b: UInt = Wire(UInt(32.W)) // contains the immediate for operand b
