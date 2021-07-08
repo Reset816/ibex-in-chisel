@@ -8,7 +8,7 @@ class ibex_id_stage extends Module {
 
     // Interface to IF stage
     val instr_valid_i: Bool = Input(Bool()) // from IF-ID pipeline registers
-    val instr_rdata_i: Bool = Input(Bool()) // from IF-ID pipeline registers
+    val instr_rdata_i: UInt = Input(UInt(32.W)) // from IF-ID pipeline registers
     val instr_rdata_alu_i: Bool = Input(Bool()) // from IF-ID pipeline registers
     val instr_req_o: Bool = Output(Bool())
     val instr_first_cycle_id_o: Bool = Output(Bool())
