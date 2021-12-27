@@ -1,3 +1,6 @@
+This is the assignment for the course Principles of Computer Organization. We have refactored [Ibex](https://github.com/lowRISC/ibex) with Chisel.
+It is a huge project and we can only finish part of it within limited time.
+
 # CPU 设计文档
 
 ## 概述
@@ -74,7 +77,3 @@ ID 阶段综合以上四个原因生成 stall 信号，以上四种原因发生�
 ## 多周期指令
 
 在本实现中，ALU 仅支持单周期的指令，仅有内存操作（LSU 请求）可能是多周期的。这在一定程度上简化了实现。
-
-
-
- 
